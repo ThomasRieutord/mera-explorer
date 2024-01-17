@@ -21,7 +21,6 @@ args = parser.parse_args()
 # Set up the test
 # ---------------
 os.makedirs("tmp/src")
-os.makedirs("tmp/trg")
 
 loc_srcs = [f"tmp/src/transfertestfile_{i}.txt" for i in range(20)]
 loc_trgs = [f"tmp/trg/transfertestfile_{i}.txt" for i in range(20)]
@@ -37,13 +36,14 @@ rusername = "trieutord"
 
 # Instanciate the transfer
 # ------------------------
+verbose = False
 
 if args.local:
-    trf = transfer.LocalTransfer()
+    trf = transfer.LocalTransfer(verbose = verbose)
 if args.ssh:
-    trf = transfer.SSHTransfer(remotehost, rusername)
+    trf = transfer.SSHTransfer(remotehost, rusername, verbose = verbose)
 if args.ftp:
-    trf = transfer.FTPTransfer(remotehost, rusername)
+    trf = transfer.FTPTransfer(remotehost, rusername, verbose = verbose)
 
 print(trf)
 
@@ -56,4 +56,4 @@ print(f"Getting back the files from {trf.remotehost} to {trf.localhost}")
 trf.mget(rem_trgs, loc_trgs)
 
 print("Done. >>> meld tmp/src tmp/trg (directories should be the same)")
-print("Clean up: [local]>>> rm -r tmp    [remote]>>> rm ~/tmp/transfertestfile_*")
+print(f"Clean up: [{trf.localhost}]>>> rm -r tmp    [{trf.remotehost}]>>> rm ~/tmp/transfertestfile_*")
