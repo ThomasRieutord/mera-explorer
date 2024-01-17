@@ -40,7 +40,7 @@ class Transfer:
     """
 
     localhost = os.environ["HOSTNAME"]
-    lusername = os.environ["USERNAME"]
+    lusername = os.environ["USER"]
 
     def __init__(self, remotehost, rusername, protocol, verbose = False):
         self.remotehost = remotehost

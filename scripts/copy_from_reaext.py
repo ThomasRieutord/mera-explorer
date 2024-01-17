@@ -33,16 +33,16 @@ print(f"Found {len(heregribnames)} GRIB files in {fsname} ({100*len(heregribname
 # Make the transfer
 # -----------------
 ### Local transfer
-trf = transfer.LocalTransfer(verbose = True)
-rem_rootdir = "/run/media/trieutord/reaext03"
-loc_rootdir = "/home/trieutord/Data/MERA/grib-sample-3GB"
+# trf = transfer.LocalTransfer(verbose = True)
+# rem_rootdir = "/run/media/trieutord/reaext03"
+# loc_rootdir = "/home/trieutord/Data/MERA/grib-sample-3GB"
 
-# ### Remote transfer
-# remotehost = "realin15"
-# rusername = "trieutord"
-# trf = transfer.FTPTransfer(remotehost, rusername, verbose = True)
-# loc_rootdir = "/run/media/trieutord/reaext03"
-# rem_rootdir = "/data/trieutord/MERA/grib-sample-3GB"
+### Remote transfer
+remotehost = "realin15"
+rusername = "trieutord"
+trf = transfer.SSHTransfer(remotehost, rusername, verbose = True)
+rem_rootdir = "/run/media/trieutord/reaext03"
+loc_rootdir = "/data/trieutord/MERA/grib-sample-3GB"
 
 src_gribnames = [
     os.path.join(rem_rootdir, gribs.expand_pathfromroot(fn)) for fn in heregribnames
