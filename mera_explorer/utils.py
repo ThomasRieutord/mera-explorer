@@ -40,6 +40,7 @@ def lineparser(line, startword, stopword=None):
         endidx = startidx + line[startidx:].index(stopword)
     else:
         endidx = len(line) + 1
+    
     return line[startidx:endidx]
 
 def str_to_datetime(strdate):
@@ -122,3 +123,5 @@ def datetime_arange(start, stop, step):
     step = str_to_timedelta(step)
     # return np.arange(start, stop, step, dtype="datetime64[m]")
     return np.arange(start, stop, step, dtype=dt.datetime)
+
+# EOF

@@ -14,7 +14,7 @@ setuptools.setup(
     Last revision of the documentation: 16 Jan. 2024""",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/ThomasRieutord/mera_explorer",
+    url="https://github.com/ThomasRieutord/mera-explorer",
     packages=setuptools.find_packages(),
     classifiers=(
         "Environment :: Console"

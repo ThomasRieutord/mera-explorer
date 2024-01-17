@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """The Met Eireann ReAnalysis explorer.
 
-https://gitlab.com/ThomasRieutord/mera_explorer
+https://github.com/ThomasRieutord/mera-explorer
 """
 import os
 
