@@ -26,10 +26,12 @@ References
 """
 
 import os
+import bz2
 import yaml
+import shutil
 import numpy as np
 import datetime as dt
-from mera_explorer import utils
+from mera_explorer import utils, _repopath_
 
 # DATA
 # ====
@@ -156,42 +158,42 @@ unit_to_itl = {
 # =========
 
 def add_vlevel_to_fieldnames(lfn, lvlvl, vlvl_unit = "hPa"):
-        """Add the appropriate suffix the field name to precise the vertical level
-        according the CF conventions.
-        
-        
-        Parameters
-        ----------
-        lfn: array-like
-            List of file names
-        
-        lvlvl: array-like
-            List of vertical levels
-        
-        vlvl_unit: str
-            Vertical levels unit
-        
-        
-        Returns
-        -------
-        lfnv: list
-            List of field names with vertical level
-        
-        
-        Examples
-        --------
-        >>> add_vlevel_to_fieldnames(["air_temperature", "geopotential_height"], [500, 850])
-        >>> ["air_temperature_at_500_hPa", "air_temperature_at_850_hPa", "geopotential_height_at_500_hPa", "geopotential_height_at_850_hPa"]
-        
-        >>> add_vlevel_to_fieldnames(["air_temperature", "wind_speed"], [10], "metres")
-        >>> ["air_temperature_at_10_metres", "wind_speed_at_10_metres"]
-        """
-        lfnv = []
-        for fd in lfn:
-            for vlvl in lvlvl:
-                lfnv.append(fd + "_" + "_".join(["at", str(vlvl), vlvl_unit]))
-        
-        return lfnv
+    """Add the appropriate suffix the field name to precise the vertical level
+    according the CF conventions.
+    
+    
+    Parameters
+    ----------
+    lfn: array-like
+        List of file names
+    
+    lvlvl: array-like
+        List of vertical levels
+    
+    vlvl_unit: str
+        Vertical levels unit
+    
+    
+    Returns
+    -------
+    lfnv: list
+        List of field names with vertical level
+    
+    
+    Examples
+    --------
+    >>> add_vlevel_to_fieldnames(["air_temperature", "geopotential_height"], [500, 850])
+    >>> ["air_temperature_at_500_hPa", "air_temperature_at_850_hPa", "geopotential_height_at_500_hPa", "geopotential_height_at_850_hPa"]
+    
+    >>> add_vlevel_to_fieldnames(["air_temperature", "wind_speed"], [10], "metres")
+    >>> ["air_temperature_at_10_metres", "wind_speed_at_10_metres"]
+    """
+    lfnv = []
+    for fd in lfn:
+        for vlvl in lvlvl:
+            lfnv.append(fd + "_" + "_".join(["at", str(vlvl), vlvl_unit]))
+    
+    return lfnv
 
 def get_grib1id_from_cfname(cfname):
     """Return the tuple (IOP, ITL, LEV, TRI) corresponding to the given CF standard name.
@@ -237,6 +239,13 @@ def get_grib1id_from_cfname(cfname):
     
     return iop, itl, lev, tri
 
+def get_grib1id_from_gribname(gribname):
+    """Extract the tuple (IOP, ITL, LEV, TRI) from the GRIB name."""
+    gribname = os.path.basename(gribname)
+    _, _, _, _, iop, itl, lev, tri, _ = gribname.split("_")
+    
+    return iop, itl, lev, tri
+
 def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = False):
     """Return the name of the MERA GRIB file corresponding to the given variable
     
@@ -246,15 +255,19 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     
     Parameters
     ----------
+    varname: str of tuple
     varname: str or tuple of int
         Name of the variable. Either the CF standard name (str) or the tuple of GRIB1 indicators (IOP, ITL, LEV, TRI)
     
+    valtime: `datetime.datetime`
     valtime: datetime.datetime
         Time of validity of the data
     
     stream: str
+    stream: str
         Stream of data ("ANALYSIS", "FC3hr" or "FC33hr")
     
+    pathfromroot: bool
     pathfromroot: bool
         If True, returns the path from the MERA root directory (i.e. the mount point for the reaext* drives)
     
@@ -292,6 +305,19 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     
     return gribname
 
+def expand_pathfromroot(gribname):
+    """Returns the path from the MERA root directory (i.e. the mount point for the reaext* drives)
+    
+    
+    Examples
+    --------
+    >>> expand_pathfromroot("MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS")
+    "mera/11/105/2/0/MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS"
+    """
+    gribname = os.path.basename(gribname)
+    iop, itl, lev, tri = get_grib1id_from_gribname(gribname)
+    return os.path.join(*[str(s) for s in ("mera", iop, itl, lev, tri)], gribname)
+
 def get_all_mera_gribnames(varnames, valtimes, streams = ["ANALYSIS"], pathfromroot = False):
     """Wrap-up the function get_mera_gribname in a loop"""
     gribnames = []
@@ -323,10 +349,10 @@ def read_variables_from_yaml(yaml_file):
     --------
     >>> yaml_vars = {
         "variables":{
-            "air_pressure_at_mean_sea_level": {},
+            "air_pressure_at_sea_level": {},
             "air_temperature":{
                     "levels": [2,10],
-                    "level_unit": "meters"
+                    "level_unit": "metres"
                 },
             }
         }
@@ -335,7 +361,7 @@ def read_variables_from_yaml(yaml_file):
     >>>
     >>> cfnames = read_variables_from_yaml('test.yaml')
     >>> cfnames
-    ['air_pressure_at_mean_sea_level', 'air_temperature_at_2_meters', 'air_temperature_at_10_meters']
+    ['air_pressure_at_sea_level', 'air_temperature_at_2_metres', 'air_temperature_at_10_metres']
     """
     with open(yaml_file, "r") as f:
         yf = yaml.safe_load(f)
@@ -367,16 +393,138 @@ def write_variables_to_yaml(cfnames, yaml_file):
     
     Examples
     --------
-    >>> cfnames = ['air_pressure_at_mean_sea_level', 'air_temperature_at_2_meters', 'air_temperature_at_10_meters']
+    >>> cfnames = ['air_pressure_at_sea_level', 'air_temperature_at_2_metres', 'air_temperature_at_10_metres']
     >>> write_variables_to_yaml(cfnames, "test.yaml")
     >>> exit()
     sh> cat test.yaml
     variables:
-      air_pressure_at_mean_sea_level: {}
-      air_temperature_at_10_meters: {}
-      air_temperature_at_2_meters: {}
+      air_pressure_at_sea_level: {}
+      air_temperature_at_10_metres: {}
+      air_temperature_at_2_metres: {}
     """
     yaml_vars = {"variables":{v:{} for v in cfnames}}
     with open(yaml_file, 'w') as yf:
         yaml.dump(yaml_vars, yf)
     
+def subset_present_variables(cfnames, fsname):
+    """Return the subset of variables from `cfnames` that are found in the file system `fsname`
+    
+    
+    Parameters
+    ----------
+    cfnames: list of str
+        Larger set of variables
+    
+    fsname: str
+        File system name (reaext0*, all)
+    
+    
+    Returns
+    -------
+    herevarnames: list of str
+        Subset of variables found in the file system
+    
+    
+    Examples
+    --------
+    >>> cfnames = ['air_pressure_at_sea_level', 'air_temperature_at_2_metres', 'air_temperature_at_10_metres']
+    >>> herevarnames = subset_present_variables(cfnames, "reaext03")
+    ['air_pressure_at_sea_level', 'air_temperature_at_2_metres']
+    """
+    if fsname == "all":
+        fstxt = os.path.join(_repopath_, "reaext", "allmerafiles.txt")
+    else:
+        fstxt = os.path.join(_repopath_, "reaext", f"merafiles_{fsname}.txt")
+    
+    with open(fstxt, "r") as f:
+        ll = f.readlines()
+    
+    merafilenames = []
+    for l in ll:
+        if l.startswith("MERA"):
+            merafilenames.append(l.strip())
+    
+    iop_itl_lev_tri = [
+        "_".join([str(d) for d in get_grib1id_from_cfname(cfname)])
+        for cfname in cfnames
+    ]
+    
+    herevarnames = []
+    for varcode, varname in zip(iop_itl_lev_tri, cfnames):
+        n_files_here = len([fn for fn in merafilenames if varcode in fn])
+        
+        if n_files_here > 0:
+            herevarnames.append(varname)
+        
+    return herevarnames
+
+def subset_present_gribnames(gribnames, fsname, exclude_bz2 = True):
+    """Return the subset of GRIB files from `gribnames` that are found in the file system `fsname`
+    
+    
+    Parameters
+    ----------
+    cfnames: list of str
+        Requested set of GRIB files
+    
+    fsname: str
+        File system name (reaext0*, all)
+    
+    
+    Returns
+    -------
+    herevarnames: list of str
+        Subset of GRIB files found in the file system
+    
+    
+    Examples
+    --------
+    >>> gribnames = ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_10_0_ANALYSIS"]
+    >>> heregribnames = subset_present_gribnames(gribnames, "reaext03", False)
+    ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS"]
+    """
+    if fsname == "all":
+        fstxt = os.path.join(_repopath_, "reaext", "allmerafiles.txt")
+    else:
+        fstxt = os.path.join(_repopath_, "reaext", f"merafiles_{fsname}.txt")
+    
+    with open(fstxt, "r") as f:
+        ll = f.readlines()
+    
+    fsgribnames = []
+    for l in ll:
+        if exclude_bz2:
+            keep = l.startswith("MERA") and not l.endswith(".bz2")
+        else:
+            keep = l.startswith("MERA")
+        
+        if keep:
+            fsgribnames.append(l.strip())
+    
+    gribnames = [os.path.basename(fn) for fn in gribnames]
+    if not exclude_bz2:
+        gribnames += [fn + ".bz2" for fn in gribnames]
+        
+    return list(set(fsgribnames) & set(gribnames))
+
+def uncompress_bz2(bz2file):
+    """Uncompress a bz2 file at the same location with the same name (without the .bz2 suffix)"""
+    with bz2.BZ2File(bz2file) as fr, open(bz2file[:-4], "wb") as fw:
+        shutil.copyfileobj(fr,fw)
+    
+    os.remove(bz2file)
+    
+    return bz2file[:-4]
+
+def uncompress_all_bz2(rootdir, verbose = False):
+    """Browse all sub-directories of `rootdir` and uncompress bz2 when they are found"""
+    i = 0
+    for root, dirs, files in os.walk(rootdir):
+        for f in files:
+            if f.endswith(".bz2"):
+                uncompress_bz2(os.path.join(root, f))
+                i += 1
+                if i % 10 == 0:
+                    print(f"[{i} files uncompressed] last one: {f}")
+
+# EOF
