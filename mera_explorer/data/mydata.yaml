@@ -1,0 +1,25 @@
+variables:
+  air_pressure_at_sea_level: {}
+  air_pressure_at_surface_level: {}
+  precipitation_amount: {}
+  air_temperature:
+    levels: [1000, 850, 700, 500]
+    level_unit: hPa
+  air_temperature:
+    levels: [2, 100]
+    level_unit: metres
+  eastward_wind_at_10_metres: {}
+  eastward_wind:
+    levels: [1000, 850, 500]
+    level_unit: hPa
+  northward_wind_at_10_metres: {}
+  northward_wind:
+    levels: [1000, 850, 500]
+    level_unit: hPa
+  upward_air_velocity_at_700_hPa: {}
+  geopotential:
+    levels: [1000, 850, 500]
+    level_unit: hPa
+  relative_humidity:
+    levels: [2, 100]
+    level_unit: metres

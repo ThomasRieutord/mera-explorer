@@ -1,0 +1,18 @@
+variables:
+  air_pressure_at_sea_level: {}
+  air_pressure_at_surface_level: {}
+  air_temperature_at_2_metres: {}
+  air_temperature_at_500_hPa: {}
+  air_temperature_at_60_metres: {}
+  air_temperature_at_850_hPa: {}
+  atmosphere_mass_content_of_water_vapor: {}
+  eastward_wind_at_60_metres: {}
+  eastward_wind_at_850_hPa: {}
+  geopotential_at_1000_hPa: {}
+  geopotential_at_500_hPa: {}
+  net_upward_longwave_flux_in_air: {}
+  net_upward_shortwave_flux_in_air: {}
+  northward_wind_at_60_metres: {}
+  northward_wind_at_850_hPa: {}
+  relative_humidity_at_2_metres: {}
+  relative_humidity_at_60_metres: {}
