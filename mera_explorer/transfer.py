@@ -215,7 +215,7 @@ class LocalTransfer(Transfer):
         shutil.copy2(src, trg)
 
     def put(self, src, trg):
-        super().get(src, trg)
+        super().put(src, trg)
         shutil.copy2(src, trg)
 
 
