@@ -1,0 +1,15 @@
+# From /data/cdaly/git/gitlab/uwcw/extractgrib/bin/grib_proj.sh <any grib file>
+#
+geometry:
+    dlon: 2500.
+    dlat: 2500.
+    gridtype: lambert
+    projlat: 53.5
+    projlat2: 53.5
+    south: 46.834
+    polat: 0.
+    west: -14.609
+    polon: 0.
+    projlon: 5.
+    nlon: 529
+    nlat: 489
