@@ -255,19 +255,15 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     
     Parameters
     ----------
-    varname: str of tuple
     varname: str or tuple of int
         Name of the variable. Either the CF standard name (str) or the tuple of GRIB1 indicators (IOP, ITL, LEV, TRI)
     
     valtime: `datetime.datetime`
-    valtime: datetime.datetime
         Time of validity of the data
     
     stream: str
-    stream: str
         Stream of data ("ANALYSIS", "FC3hr" or "FC33hr")
     
-    pathfromroot: bool
     pathfromroot: bool
         If True, returns the path from the MERA root directory (i.e. the mount point for the reaext* drives)
     
@@ -328,6 +324,61 @@ def get_all_mera_gribnames(varnames, valtimes, streams = ["ANALYSIS"], pathfromr
             
         
     return np.unique(gribnames)
+
+def get_filesystem_host_and_root(fsname):
+    """Return the host name and the root path of the file system `fsname`
+    
+    The host name is either the IP adress or a name than can be reached with SSH
+    or FTP and that contains the MERA data at the location given by the root path.
+    
+    
+    Parameters
+    ----------
+    fsname: str
+        File system name (reaext0*, all)
+    
+    
+    Returns
+    -------
+    hostname: str
+        Host name or IP adress where the file system is
+    
+    meraroot: str
+        Path to the root directory of the file sytem.
+    
+    
+    Examples
+    --------
+    The GRIB file MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS is in the reaext03 filesystem.
+    The output of this spinnet gives the command to copy this file locally.
+    
+    >>> gribname = "MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS"
+    >>> fsname = "reaext03"
+    >>> rootgribname = expand_pathfromroot(gribname)
+    >>> hostname, meraroot = get_filesystem_host_and_root(fsname)
+    >>> abspath_to_grib = os.path.join(meraroot,rootgribname)
+    >>> print(f"scp {hostname}:{abspath_to_grib} .")
+    scp realin15:/run/media/trieutord/reaext03/mera/11/105/2/0/MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS .
+    """
+    if fsname == "all":
+        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
+    else:
+        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+    
+    hostname, meraroot = "", ""
+    
+    with open(fstxt, "r") as f:
+        for l in f:
+            if l.startswith("#!HOSTNAME="):
+                hostname = utils.lineparser(l.strip(), "#!HOSTNAME=")
+            if l.startswith("#!MERAROOT="):
+                meraroot = utils.lineparser(l.strip(), "#!MERAROOT=")
+            
+            if len(hostname) > 0 and len(meraroot) > 0:
+                break
+    
+    return hostname, meraroot
+
 
 def read_variables_from_yaml(yaml_file):
     """Read the set of variables given in a yaml file. Vertical levels are expanded if necessary
@@ -432,9 +483,9 @@ def subset_present_variables(cfnames, fsname):
     ['air_pressure_at_sea_level', 'air_temperature_at_2_metres']
     """
     if fsname == "all":
-        fstxt = os.path.join(_repopath_, "reaext", "allmerafiles.txt")
+        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
     else:
-        fstxt = os.path.join(_repopath_, "reaext", f"merafiles_{fsname}.txt")
+        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
     
     with open(fstxt, "r") as f:
         ll = f.readlines()
@@ -484,9 +535,9 @@ def subset_present_gribnames(gribnames, fsname, exclude_bz2 = True):
     ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS"]
     """
     if fsname == "all":
-        fstxt = os.path.join(_repopath_, "reaext", "allmerafiles.txt")
+        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
     else:
-        fstxt = os.path.join(_repopath_, "reaext", f"merafiles_{fsname}.txt")
+        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
     
     with open(fstxt, "r") as f:
         ll = f.readlines()
