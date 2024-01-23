@@ -15,6 +15,9 @@ parser = argparse.ArgumentParser(prog="transfer_test", description='Check if the
 parser.add_argument('--local', help="Test a local transfer", action='store_true')
 parser.add_argument('--ftp', help="Test a transfer with FTP", action='store_true')
 parser.add_argument('--ssh', help="Test a transfer with SSH", action='store_true')
+parser.add_argument('--verbose', help="Trigger verbose mode", action='store_true')
+parser.add_argument("--rhost", help="Remote host (name or IP)", default="realin15")
+parser.add_argument("--ruser", help="User name on the remote host", default="trieutord")
 args = parser.parse_args()
 
 
@@ -30,13 +33,14 @@ for src in loc_srcs:
     x = np.random.rand(100, 100)
     np.savetxt(src, x)
 
-remotehost = "reaserve"
-rusername = "trieutord"
-
 
 # Instanciate the transfer
 # ------------------------
-verbose = False
+remotehost = args.rhost
+rusername = args.ruser
+verbose = args.verbose
+if remotehost == "hpc-login":
+    print(f"Transfer from/to {remotehost} do not work for the moment. Use a smart rsync command instead then copy locally.")
 
 if args.local:
     trf = transfer.LocalTransfer(verbose = verbose)

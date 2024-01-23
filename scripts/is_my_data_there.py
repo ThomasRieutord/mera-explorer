@@ -38,9 +38,9 @@ args = parser.parse_args()
 
 ### File system
 if args.fs == "all":
-    fstxt = os.path.join(_repopath_, "reaext", "allmerafiles.txt")
+    fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
 else:
-    fstxt = os.path.join(_repopath_, "reaext", f"merafiles_{args.fs}.txt")
+    fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{args.fs}.txt")
 
 assert os.path.isfile(fstxt), f"Incorrect path to the file system TXT export: {fstxt}"
 
