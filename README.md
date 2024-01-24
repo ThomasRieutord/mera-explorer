@@ -9,16 +9,46 @@ The main purpose of this repository is provide tools to browse and manipulate th
 Installation
 ------------
 
-### With Conda (only way for now)
+We recommend using isolate Python environment to prevent any disruption with exisitng installation.
+The chosen solution is to use the [Mamba](https://mamba.readthedocs.io/en/latest/) package manager.
+The installation procedure starts from scratch, please skip any step you have already done.
 
-The main dependencies of this repository are Python 3.10, Eccodes, Ecml-tools, Xarray, Numpy, Zarr, h5py, netCDF4 and Matplotlib.
-We recommend to use [Conda](https://docs.conda.io/projects/conda/en/latest/index.html).
-In a Conda environment with the listed packages, clone the repository and install the package with `pip install -e .`
+### 1. Install Mamba
 
+Get the installer [here](https://github.com/conda-forge/miniforge/releases), then run it. It will ask for the location of the environment, you should select a location with at least 15GB free. Say yes to the licence and mamba init.
+For Linux, here are the commands:
+```
+wget https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-Linux-x86_64.sh
+bash Mambaforge-23.11.0-0-Linux-x86_64.sh
+```
+
+### 2. Create a new environment
+
+After restarting your shell, you will be able to create a new environment with Python 3.11 with the following commands. We suggest `merax` (MERA eXplorer) as the environment name.
+```
+mamba create -n merax python=3.11
+```
+
+### 3. Install the GRIB-related package with mamba
+
+Activate the environment and install these depencies with mamba
+```
+mamba activate merax
+mamba install eccodes cfgrib xarray
+```
+
+### 4. Install the other dependencies and this package with pip
+
+In your activated environment, run
+```
+pip install -r requirements.txt
+pip install -e .
+```
 
 ### Check the installation
 
-To check the software installation:
+The environment must be activated each time you want to use the package.
+To check the installation:
 ```
 python tests/import_tests.py
 ````
@@ -33,10 +63,27 @@ Usage
   2. Launch `python scripts/is_my_data_there.py [--fs=FILESYSTEM] [--vars=YAMLFILE]`
 
 
-### Help transferring the data
+### Transferring the data
 
-Not implemented yet.
+Once you have identified where is the data your are looking for, you can use the script `copy_from_reaext.py` to get them.
+At the moment, the transfer works only from the reaext* drives.
+The script is intended to run on Reaserve and the drive mounted to the host given by
+```
+head -2 filesystems/merafiles_reaext0[3-8].txt
+```
+For example, with reaext03:
+```
+(merax) [trieutord@REAServe2 mera-explorer]$ head -2 filesystems/merafiles_reaext03.txt
+#!HOSTNAME=realin15
+#!MERAROOT=/run/media/trieutord/reaext03
+```
 
+Please edit these lines if they are not correct.
+Then the transfer can be launched.
+For example, here is the command get all the variables needed in Neural-LAM that are present in reaext03 from the years 1981 to 2017 (included):
+```
+python copy_from_reaext.py --fs=reaext03 --vars=neurallam.yaml --ruser=trieutord --lrootdir=/data/trieutord/MERA/grib-from-reaext --rdates=1981-01_2017-12 --verbose
+```
 
 ### Convert the data into a different format
 
