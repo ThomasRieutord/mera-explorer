@@ -239,6 +239,13 @@ def get_grib1id_from_cfname(cfname):
     
     return iop, itl, lev, tri
 
+def get_date_from_gribname(gribname):
+    """Extract the date (1st of the month) from the GRIB name."""
+    gribname = os.path.basename(gribname)
+    _, _, year, month, _, _, _, _, _ = gribname.split("_")
+    
+    return dt.datetime(int(year), int(month), 1)
+
 def get_grib1id_from_gribname(gribname):
     """Extract the tuple (IOP, ITL, LEV, TRI) from the GRIB name."""
     gribname = os.path.basename(gribname)
@@ -558,6 +565,56 @@ def subset_present_gribnames(gribnames, fsname, exclude_bz2 = True):
         
     return list(set(fsgribnames) & set(gribnames))
 
+def get_all_present_gribnames(cfnames, fsname, exclude_bz2 = True, stream = "ANALYSIS"):
+    """Return the subset of GRIB files from `gribnames` that are found in the file system `fsname`
+    
+    
+    Parameters
+    ----------
+    cfnames: list of str
+        Requested set of GRIB files
+    
+    fsname: str
+        File system name (reaext0*, all)
+    
+    
+    Returns
+    -------
+    herevarnames: list of str
+        Subset of GRIB files found in the file system
+    
+    
+    Examples
+    --------
+    >>> cfnames = ['air_pressure_at_sea_level', 'air_temperature_at_2_metres']
+    >>> heregribnames = get_all_present_gribnames(cfnames, "reaext03", False)
+    ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS"]
+    """
+    if fsname == "all":
+        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
+    else:
+        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+    
+    with open(fstxt, "r") as f:
+        ll = f.readlines()
+    
+    iop_itl_lev_tri = [
+        "_".join([str(d) for d in get_grib1id_from_cfname(cfname)] + [stream])
+        for cfname in cfnames
+    ]
+    
+    fsgribnames = []
+    for l in ll:
+        l = l.strip()
+        keep = l.startswith("MERA") and any([vc in l for vc in iop_itl_lev_tri])
+        if exclude_bz2:
+            keep = keep and not l.endswith(".bz2")
+        
+        if keep:
+            fsgribnames.append(l)
+    
+    return fsgribnames
+
 def uncompress_bz2(bz2file):
     """Uncompress a bz2 file at the same location with the same name (without the .bz2 suffix)"""
     with bz2.BZ2File(bz2file) as fr, open(bz2file[:-4], "wb") as fw:
@@ -577,5 +634,45 @@ def uncompress_all_bz2(rootdir, verbose = False):
                 i += 1
                 if i % 10 == 0:
                     print(f"[{i} files uncompressed] last one: {f}")
+
+
+def count_dates_per_month(dates_available, dates_expected = None):
+    """Count 
+    """
+    if dates_expected is not None:
+        start = min(dates_expected)
+        stop = max(dates_expected)
+    else:
+        start = min(dates_available)
+        stop = max(dates_available)
+    
+    years = np.arange(start.year, stop.year + 1)
+    months = np.arange(1, 13)
+    
+    if dates_expected is not None:
+        msg = "  Counting #(dates availables) - #(dates expected) for each month   \n"
+    else:
+        msg = "  Counting number of dates availables for each month   \n"
+    
+    msg += "     |" + " ".join([str(m).ljust(5) for m in months]) + "\n"
+    msg += "-----+" + "-".join(["-----" for m in months]) + "\n"
+    mcount = np.zeros((years.size, 12), dtype = np.int32)
+    for iy, y in enumerate(years):
+        for m in months:
+            if dates_expected is not None:
+                mcount[iy, m-1] = sum([d.year == y and d.month == m for d in dates_available]) - sum([d.year == y and d.month == m for d in dates_expected])
+            else:
+                mcount[iy, m-1] = sum([d.year == y and d.month == m for d in dates_available])
+        
+        msg += str(y).ljust(5) + "|" + " ".join(
+            [
+                str(mc).ljust(5) for mc in mcount[iy, :]
+            ]
+        ) + "\n"
+    
+    msg += "-----+" + "-".join(["-----" for m in months]) + "\n"
+    print(msg)
+    
+    return mcount
 
 # EOF
