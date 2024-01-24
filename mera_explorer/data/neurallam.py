@@ -34,11 +34,11 @@ neurallam_variables = [
     "atmosphere_mass_content_of_water_vapor",
 ] + gribs.add_vlevel_to_fieldnames(
     ["relative_humidity", "air_temperature"],
-    [2, 60],    # In MEPS, the first level is at 65 m. We take 60 instead.
+    [2, 30],    # In MEPS, the first level is at 12.5 m. We take 30 instead.
     "metres"
 ) + gribs.add_vlevel_to_fieldnames(
     ["eastward_wind", "northward_wind"],
-    [60],    # In MEPS, the first level is at 65 m. We take 60 instead.
+    [30],    # In MEPS, the first level is at 12.5 m. We take 30 instead.
     "metres"
 ) + gribs.add_vlevel_to_fieldnames(
     ["geopotential"],
