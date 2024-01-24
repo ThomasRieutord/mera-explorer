@@ -28,8 +28,6 @@ parser.add_argument("--type", help="Type of transfer (ssh, ftp, local)", default
 parser.add_argument("--fs", help="File system name (reaext0*, all)", default="all")
 parser.add_argument("--vars", help="YAML file describing the set of atmospheric variables to check", default="mydata.yaml")
 parser.add_argument("--lrootdir", help="Root directory on the local host (where the files are put)")
-# parser.add_argument("--rrootdir", help="Root directory on the remote host (where the files are taken from)")
-# parser.add_argument("--rhost", help="Remote host (name or IP)", default="realin15")
 parser.add_argument("--ruser", help="User name on the remote host", default="trieutord")
 parser.add_argument("--rdates", help="Range of validity dates to transfer (ex: 1991-01_2001-04 transfers all GRIB from Jan. 1991 to Apr. 2001)", default="1981-01_2016-12")
 parser.add_argument('--verbose', help="Trigger verbose mode", action='store_true')
@@ -47,8 +45,6 @@ assert os.path.isfile(fstxt), f"Incorrect path to the file system TXT export: {f
 yaml_file = os.path.join(_repopath_, "mera_explorer", "data", args.vars)
 assert os.path.isfile(yaml_file), f"File not found: {yaml_file}"
 
-# remotehost = args.rhost
-# rem_rootdir = args.rrootdir
 fsname = args.fs
 type_of_tranfer = args.type.lower()
 loc_rootdir = args.lrootdir
@@ -61,7 +57,7 @@ verbose = args.verbose
 remotehost, rem_rootdir = gribs.get_filesystem_host_and_root(fsname)
 req_variables = gribs.read_variables_from_yaml(yaml_file)
 start = args.rdates.split("_")[0] + "-01"
-stop = args.rdates.split("_")[-1] + "-30"
+stop = args.rdates.split("_")[-1] + "-28"
 valtimes = utils.datetime_arange(start, stop, "10d")
 
 req_gribnames = gribs.get_all_mera_gribnames(req_variables, valtimes, pathfromroot = False)
