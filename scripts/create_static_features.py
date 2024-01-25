@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""The Met Eireann ReAnalysis explorer.
+
+Create static features for Neural-LAM training.
+
+
+Tree of files to be written:
+
+data
+└── mera_example
+    ├── samples
+    └── static
+        ├── surface_geopotential.npy
+        ├── border_mask.npy
+        └── nwp_xy.npy
+
+Memo
+-----
+The meraclim dir contains FA/LFI files that must be converted in GRIB beforehand.
+The orography is stored in the monthly clim (m* files).
+Here is the command to convert them (25 Jan. 2024):
+
+[trieutord@REAServe2 meraclim]$ ll
+total 2202284
+-rw-r-----. 1 trieutord trieutord 445169664 Mar 26  2015 Const.Clim.sfx
+-rw-rw-r--. 1 trieutord trieutord        50 Jan 22 17:12 excl.nam
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m01
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m02
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m03
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m04
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m05
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m06
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m07
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m08
+-rw-r-----. 1 trieutord trieutord  40132608 Mar 26  2015 m09
+-rw-r-----. 1 trieutord trieutord  40132608 Apr 12  2015 m10
+-rw-r-----. 1 trieutord trieutord  40132608 Apr 12  2015 m11
+-rw-r-----. 1 trieutord trieutord  40132608 Apr 21  2015 m12
+-rw-r-----. 1 trieutord trieutord 421552128 Mar 26  2015 PGD.lfi
+-rw-r-----. 1 trieutord trieutord 426418176 Mar 26  2015 PGD_prel.fa
+-rw-r-----. 1 trieutord trieutord 421699584 Mar 26  2015 PGD_prel.lfi
+[trieutord@REAServe2 meraclim]$ module load gl
+[trieutord@REAServe2 meraclim]$ gl -p m05 -o m05.grib -igd
+"""
+
+import os
+import yaml
+import numpy as np
+import xarray as xr
+import matplotlib.pyplot as plt
+import easydict
+from pyproj import Transformer
+from mera_explorer import _repopath_
+
+writefiles = True
+meraclimroot = "/data/trieutord/MERA/meraclim"
+mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
+# meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
+
+sfx = xr.open_dataset(os.path.join(meraclimroot, "m05.grib"), engine='cfgrib', filter_by_keys={'typeOfLevel':'heightAboveGround'})
+
+
+
+# Create the orography file: surface_geopotential
+# --------------------------
+orofile = os.path.join(mllamdataroot, "static", "surface_geopotential.npy")
+print(f"Orography file to be written in {orofile}")
+
+
+z = sfx.z.to_numpy()
+print(f"    z.shape={z.shape}")
+
+if writefiles:
+    np.save(orofile, z)
+    print(f"    Saved: {orofile}")
+
+
+
+# Create the geometry file: nwp_xy
+# -------------------------
+xyfile = os.path.join(mllamdataroot, "static", "nwp_xy.npy")
+print(f"Geometry file to be written in {xyfile}")
+
+meregeomfile = os.path.join(_repopath_, "mera_explorer", "data", "mera-grid-geometry.yaml")
+assert os.path.isfile(meregeomfile), f"File with MERA geometry is missing at {meregeomfile}"
+
+with open(meregeomfile, "r") as f:
+    geom = yaml.safe_load(f)
+
+g = easydict.EasyDict(geom["geometry"])
+meracrs = f"+proj=lcc +lat_0={g.projlat} +lon_0={g.projlon} +lat_1={g.projlon} +lat_2={g.projlat2} +x_0={g.polon} +y_0={g.polat} +datum=WGS84 +units=m +no_defs"
+crstrans = Transformer.from_crs("EPSG:4326", meracrs, always_xy=True)
+
+x, y = crstrans.transform(sfx.longitude.to_numpy(), sfx.latitude.to_numpy())
+
+xy = np.array([x, y])
+print(f"    xy.shape={xy.shape}")
+
+if writefiles:
+    np.save(xyfile, xy)
+    print(f"    Saved: {xyfile}")
+
+
+
+# Create the border file: border_mask
+# -----------------------
+borfile = os.path.join(mllamdataroot, "static", "border_mask.npy")
+print(f"Border file to be written in {borfile}")
+
+xy = np.load(xyfile)
+border = np.ones_like(xy[0])
+border[10:-10, 10:-10] = 0
+print(f"    border.shape={border.shape}")
+
+if writefiles:
+    np.save(borfile, border)
+    print(f"    Saved: {borfile}")
+    
