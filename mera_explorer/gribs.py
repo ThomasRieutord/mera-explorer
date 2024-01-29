@@ -134,6 +134,7 @@ cfname_to_default_grib1id = {
     "surface_net_upward_shortwave_flux":                (111, 105, 0, 4),
     "surface_net_upward_longwave_flux":                 (112, 105, 0, 4),
     "toa_net_upward_shortwave_flux":                    (113, 8, 0, 4),
+    "toa_incoming_shortwave_flux":                      (113, 8, 0, 4), 
     "toa_outgoing_longwave_flux":                       (114, 8, 0, 4),
     "net_upward_longwave_flux_in_air":                  (115, 105, 0, 4),
     "net_upward_shortwave_flux_in_air":                 (116, 105, 0, 4),
@@ -367,10 +368,7 @@ def get_filesystem_host_and_root(fsname):
     >>> print(f"scp {hostname}:{abspath_to_grib} .")
     scp realin15:/run/media/trieutord/reaext03/mera/11/105/2/0/MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS .
     """
-    if fsname == "all":
-        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
-    else:
-        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+    fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
     
     hostname, meraroot = "", ""
     
@@ -386,6 +384,60 @@ def get_filesystem_host_and_root(fsname):
     
     return hostname, meraroot
 
+def list_mera_gribnames(fsname, keep = None):
+    """Return the list of MERA GRIB files found under the given directory
+    
+    
+    Parameters
+    ----------
+    fsname: str
+        File system (reaext0*, all) or root directory path.
+        When a directory is passed, we walk into all sub-dirs to track MERA files
+    
+    keep: Callable or None, default = None
+        Criterion on the file name to be kept in the list. When set to None (default)
+        this criterion is to starts with "MERA".
+    
+    Returns
+    -------
+    merafilenames: list of str
+        Flat list of MERA files
+    
+    
+    Examples
+    --------
+    >>> # Get all the MERA files that are in the disk "reaext03":
+    >>> merafilenames = list_mera_gribnames("reaext03")
+    >>> len(merafilenames)
+    22272
+    >>> # Get all the MERA files that are under a directory:
+    >>> merafilenames = list_mera_gribnames("/data/trieutord/MERA/grib-sample-3GB")
+    >>> len(merafilenames)
+    28
+    """
+    if not callable(keep):
+        keep = lambda it: it.startswith("MERA")
+        
+    merafilenames = []
+    
+    if os.path.isdir(fsname):
+        # When a directory is passed, we walk into all sub-dirs to track MERA files
+        for root, dirs, files in os.walk(fsname):
+            for f in files:
+                if keep(f):
+                    merafilenames.append(f)
+                
+    else:
+        # When a file is passed, it contains the list of files in the file system
+        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+        assert os.path.isfile(fstxt), f"Could not find the file: {fstxt}"
+        with open(fstxt, "r") as f:
+            for l in f:
+                l = l.strip()
+                if keep(l):
+                    merafilenames.append(l)
+    
+    return merafilenames
 
 def read_variables_from_yaml(yaml_file):
     """Read the set of variables given in a yaml file. Vertical levels are expanded if necessary
@@ -489,18 +541,7 @@ def subset_present_variables(cfnames, fsname):
     >>> herevarnames = subset_present_variables(cfnames, "reaext03")
     ['air_pressure_at_sea_level', 'air_temperature_at_2_metres']
     """
-    if fsname == "all":
-        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
-    else:
-        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
-    
-    with open(fstxt, "r") as f:
-        ll = f.readlines()
-    
-    merafilenames = []
-    for l in ll:
-        if l.startswith("MERA"):
-            merafilenames.append(l.strip())
+    merafilenames = list_mera_gribnames(fsname)
     
     iop_itl_lev_tri = [
         "_".join([str(d) for d in get_grib1id_from_cfname(cfname)])
@@ -539,25 +580,20 @@ def subset_present_gribnames(gribnames, fsname, exclude_bz2 = True):
     --------
     >>> gribnames = ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_10_0_ANALYSIS"]
     >>> heregribnames = subset_present_gribnames(gribnames, "reaext03", False)
-    ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS"]
+    ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS.bz2", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS.bz2"]
+    
+    >>> heregribnames = subset_present_gribnames(gribnames, "reaext03", True)
+    []
+    
+    >>> heregribnames = gribs.subset_present_gribnames(gribnames, "/data/trieutord/MERA/grib-sample-3GB", True)
+    ['MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS', 'MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS']
     """
-    if fsname == "all":
-        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
+    if exclude_bz2:
+        keep_crit = lambda l: l.startswith("MERA") and not l.endswith(".bz2")
     else:
-        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+        keep_crit = None
     
-    with open(fstxt, "r") as f:
-        ll = f.readlines()
-    
-    fsgribnames = []
-    for l in ll:
-        if exclude_bz2:
-            keep = l.startswith("MERA") and not l.endswith(".bz2")
-        else:
-            keep = l.startswith("MERA")
-        
-        if keep:
-            fsgribnames.append(l.strip())
+    fsgribnames = list_mera_gribnames(fsname, keep = keep_crit)
     
     gribnames = [os.path.basename(fn) for fn in gribnames]
     if not exclude_bz2:
@@ -588,32 +624,32 @@ def get_all_present_gribnames(cfnames, fsname, exclude_bz2 = True, stream = "ANA
     --------
     >>> cfnames = ['air_pressure_at_sea_level', 'air_temperature_at_2_metres']
     >>> heregribnames = get_all_present_gribnames(cfnames, "reaext03", False)
-    ["MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS", "MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS"]
-    """
-    if fsname == "all":
-        fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
-    else:
-        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+    ['MERA_PRODYEAR_1981_01_1_103_0_0_ANALYSIS.bz2', ..., 'MERA_PRODYEAR_2019_08_11_105_2_0_ANALYSIS.bz2']
     
-    with open(fstxt, "r") as f:
-        ll = f.readlines()
+    >>> heregribnames = get_all_present_gribnames(cfnames, "reaext03", True)
+    []
+    
+    >>> heregribnames = get_all_present_gribnames(cfnames, "/data/trieutord/MERA/grib-sample-3GB", True)
+    ['MERA_PRODYEAR_2017_11_1_103_0_0_ANALYSIS',
+     'MERA_PRODYEAR_2017_09_1_103_0_0_ANALYSIS',
+     'MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS',
+     'MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS',
+     'MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS',
+     'MERA_PRODYEAR_2017_11_11_105_2_0_ANALYSIS']
+    """
     
     iop_itl_lev_tri = [
         "_".join([str(d) for d in get_grib1id_from_cfname(cfname)] + [stream])
         for cfname in cfnames
     ]
     
-    fsgribnames = []
-    for l in ll:
-        l = l.strip()
-        keep = l.startswith("MERA") and any([vc in l for vc in iop_itl_lev_tri])
-        if exclude_bz2:
-            keep = keep and not l.endswith(".bz2")
-        
-        if keep:
-            fsgribnames.append(l)
+    if exclude_bz2:
+        keep_crit = lambda l: l.startswith("MERA") and any([vc in l for vc in iop_itl_lev_tri]) and not l.endswith(".bz2")
+    else:
+        keep_crit = lambda l: l.startswith("MERA") and any([vc in l for vc in iop_itl_lev_tri])
     
-    return fsgribnames
+    
+    return list_mera_gribnames(fsname, keep = keep_crit)
 
 def uncompress_bz2(bz2file):
     """Uncompress a bz2 file at the same location with the same name (without the .bz2 suffix)"""
@@ -637,7 +673,68 @@ def uncompress_all_bz2(rootdir, verbose = False):
 
 
 def count_dates_per_month(dates_available, dates_expected = None):
-    """Count 
+    """Display the distribution of a list of dates into a regular year-month matrix
+    
+    The x-axis are the month of the year. The y-axis are the years. Each
+    cell gives the count of dates in `dates_available` with this month and year.
+    It is used to check if files are missing for specific dates.
+    
+    
+    Parameters
+    ----------
+    dates_available: list of `datetime.datetime`
+        Flat list of dates for which the distribution will be shown
+    
+    dates_expected: list of `datetime.datetime`, optional
+        Flat list of dates expected with no missing dates. If provided, each
+        cell gives the difference between the number of dates if both lists.
+        Negatives values highlight missing dates.
+    
+    
+    Returns
+    -------
+    mcount: ndarray of shape (n_years, 12)
+        Matrix with the values displayed.
+    
+    
+    Examples
+    --------
+    >>> cfnames = ['air_temperature_at_2_metres']
+    >>> fsgribnames = gribs.get_all_present_gribnames(cfnames, "reaext03", False)
+    >>> fsgribdates = [gribs.get_date_from_gribname(gn) for gn in fsgribnames]
+    >>> gribs.count_dates_per_month(fsgribdates)
+
+  Counting number of dates availables for each month   
+     |1     2     3     4     5     6     7     8     9     10    11    12   
+-----+-----------------------------------------------------------------------
+1981 |1     1     1     1     1     1     1     1     1     1     1     1    
+1982 |1     1     1     1     1     1     1     1     1     1     1     1    
+...
+2018 |1     1     1     1     1     1     1     1     1     1     1     1    
+2019 |1     1     1     1     1     1     1     1     0     0     0     0    
+-----+-----------------------------------------------------------------------
+
+    >>> from mera_explorer.data import neurallam
+    >>> cfnames = neurallam.neurallam_variables
+    >>> fsgribnames = gribs.get_all_present_gribnames(cfnames, "/data/trieutord/MERA/grib-sample-3GB")
+    >>> fsgribdates = [gribs.get_date_from_gribname(gn) for gn in fsgribnames]
+    >>> gribs.count_dates_per_month(fsgribdates)
+
+  Counting number of dates availables for each month   
+     |1     2     3     4     5     6     7     8     9     10    11    12   
+-----+-----------------------------------------------------------------------
+2017 |0     0     0     0     0     0     0     0     6     6     6     0    
+-----+-----------------------------------------------------------------------
+
+    >>> expgribnames = gribs.get_all_mera_gribnames(cfnames, fsgribdates, pathfromroot = True)
+    >>> expdates = [gribs.get_date_from_gribname(gn) for gn in expgribnames]
+    >>> gribs.count_dates_per_month(fsgribdates, expdates)
+
+  Counting #(dates availables) - #(dates expected) for each month   
+     |1     2     3     4     5     6     7     8     9     10    11    12   
+-----+-----------------------------------------------------------------------
+2017 |0     0     0     0     0     0     0     0     -11   -11   -11   0    
+-----+-----------------------------------------------------------------------
     """
     if dates_expected is not None:
         start = min(dates_expected)
