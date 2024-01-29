@@ -32,13 +32,13 @@ from mera_explorer.data import my_data
 # Argument parsing
 # ----------------
 parser = argparse.ArgumentParser(prog="is_my_data_there")
-parser.add_argument("--fs", help="File system name (reaext0*, all)", default="all")
+parser.add_argument("--fs", help="File system name (reaext0*, all, path to local directory)", default="all")
 parser.add_argument("--vars", help="YAML file describing the set of atmospheric variables to check", default="mydata.yaml")
 args = parser.parse_args()
 
 ### File system
-if args.fs == "all":
-    fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
+if os.path.isdir(args.fs):
+    raise NotImplementedError("Passing dir path will be ready soon, but not yet done.")
 else:
     fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{args.fs}.txt")
 

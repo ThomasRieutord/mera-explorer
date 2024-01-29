@@ -6,6 +6,13 @@ Copy the GRIB files from one of the MERA drives.
 
 Local transfer  --> This script is executed from the host where the drive is mounted
 Remote transfer --> This script is executed from a server (localhost) connected to the host where the drive is mounted (remotehost)
+
+Copy from ATOS
+--------------
+Transfer from/to hpc-login do not work for the moment. Here is the rsync command to transfer all ANALYSIS files from Eoin's account
+
+    rsync -avz --exclude '*_FC3*' dutr@hpc-login:/scratch/dui/mera/ /data/trieutord/MERA/grib-all/mera/
+
 """
 
 import os
@@ -25,7 +32,7 @@ from mera_explorer.data import neurallam
 # ----------------
 parser = argparse.ArgumentParser(prog="copy_from_reaext")
 parser.add_argument("--type", help="Type of transfer (ssh, ftp, local)", default="ssh")
-parser.add_argument("--fs", help="File system name (reaext0*, all)", default="all")
+parser.add_argument("--fs", help="File system name (reaext0*, all, path to local directory)", default="all")
 parser.add_argument("--vars", help="YAML file describing the set of atmospheric variables to check", default="mydata.yaml")
 parser.add_argument("--lrootdir", help="Root directory on the local host (where the files are put)")
 parser.add_argument("--ruser", help="User name on the remote host", default="trieutord")
@@ -34,8 +41,8 @@ parser.add_argument('--verbose', help="Trigger verbose mode", action='store_true
 args = parser.parse_args()
 
 ### File system
-if args.fs == "all":
-    fstxt = os.path.join(_repopath_, "filesystems", "allmerafiles.txt")
+if os.path.isdir(args.fs):
+    raise NotImplementedError("Passing dir path will be ready soon, but not yet done.")
 else:
     fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{args.fs}.txt")
 
