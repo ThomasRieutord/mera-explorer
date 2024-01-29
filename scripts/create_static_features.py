@@ -15,8 +15,13 @@ data
         ├── border_mask.npy
         └── nwp_xy.npy
 
-Memo
------
+
+NOTES
+=====
+
+Convert FA/LFI to GRIB
+----------------------
+
 The meraclim dir contains FA/LFI files that must be converted in GRIB beforehand.
 The orography is stored in the monthly clim (m* files).
 Here is the command to convert them (25 Jan. 2024):
@@ -53,7 +58,7 @@ import easydict
 from pyproj import Transformer
 from mera_explorer import _repopath_
 
-writefiles = True
+writefiles = False
 meraclimroot = "/data/trieutord/MERA/meraclim"
 mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
 # meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
@@ -116,4 +121,19 @@ print(f"    border.shape={border.shape}")
 if writefiles:
     np.save(borfile, border)
     print(f"    Saved: {borfile}")
+    
+
+
+
+# Create the land/sea mask: wrt_mask
+# ------------------------
+wrtfile = os.path.join(mllamdataroot, "static", "wrt_mask.npy")
+print(f"Land/sea mask file to be written in {wrtfile}")
+
+lsm = sfx.lsm.to_numpy()
+print(f"    lsm.shape={lsm.shape}")
+
+if writefiles:
+    np.save(wrtfile, 1 - lsm)
+    print(f"    Saved: {wrtfile}")
     
