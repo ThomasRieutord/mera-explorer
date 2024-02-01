@@ -1,0 +1,5 @@
+variables:
+  precipitation_amount: {}
+  net_upward_longwave_flux_in_air: {}
+  net_upward_shortwave_flux_in_air: {}
+  toa_incoming_shortwave_flux: {}

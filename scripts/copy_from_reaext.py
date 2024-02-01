@@ -7,6 +7,19 @@ Copy the GRIB files from one of the MERA drives.
 Local transfer  --> This script is executed from the host where the drive is mounted
 Remote transfer --> This script is executed from a server (localhost) connected to the host where the drive is mounted (remotehost)
 
+
+Examples
+--------
+Copy the variables necessary for Neural-LAM from reaext03 to reaserve
+
+    python copy_from_reaext.py --fs=reaext03 --vars=neurallam.yaml --ruser=trieutord --lrootdir=/data/trieutord/MERA/grib-all --rdates=1981-01_2017-12 --verbose
+
+
+Copy cumulatives variables from reaext03 to reaserve
+
+    python copy_from_reaext.py --fs=reaext03 --vars=cumulative.yaml --ruser=trieutord --lrootdir=/data/trieutord/MERA/grib-all --rdates=1981-01_2017-12 --streams=FC3hr,FC33hr --verbose
+
+
 Copy from ATOS
 --------------
 Transfer from/to hpc-login do not work for the moment. Here is the rsync command to transfer all ANALYSIS files from Eoin's account
@@ -36,9 +49,13 @@ parser.add_argument("--fs", help="File system name (reaext0*, all, path to local
 parser.add_argument("--vars", help="YAML file describing the set of atmospheric variables to check", default="mydata.yaml")
 parser.add_argument("--lrootdir", help="Root directory on the local host (where the files are put)")
 parser.add_argument("--ruser", help="User name on the remote host", default="trieutord")
+parser.add_argument("--streams", help="Streams of data to copy (ANALYSIS, FC3hr, FC33hr)", default="ANALYSIS")
 parser.add_argument("--rdates", help="Range of validity dates to transfer (ex: 1991-01_2001-04 transfers all GRIB from Jan. 1991 to Apr. 2001)", default="1981-01_2016-12")
 parser.add_argument('--verbose', help="Trigger verbose mode", action='store_true')
 args = parser.parse_args()
+
+### Streams
+streams = args.streams.split(",")
 
 ### File system
 if os.path.isdir(args.fs):
@@ -67,7 +84,7 @@ start = args.rdates.split("_")[0] + "-01"
 stop = args.rdates.split("_")[-1] + "-28"
 valtimes = utils.datetime_arange(start, stop, "10d")
 
-req_gribnames = gribs.get_all_mera_gribnames(req_variables, valtimes, pathfromroot = False)
+req_gribnames = gribs.get_all_mera_gribnames(req_variables, valtimes, streams = streams, pathfromroot = False)
 heregribnames = gribs.subset_present_gribnames(req_gribnames, fsname, exclude_bz2 = False)
 print(f"Found {len(heregribnames)} GRIB files in {fsname} ({100*len(heregribnames)/len(req_gribnames)} % of all).")
 
@@ -78,7 +95,7 @@ if remotehost == "hpc-login":
             for y in range(1981, 2017)
             if y not in np.unique([d.year for d in valtimes])
         ] + [
-        "*_FC3*"
+            "*_FC3*"
         ]
     )
     print(f"\n    rsync -avz --exclude={{{excluded}}} {rusername}@{remotehost}:{rem_rootdir}/mera/ {loc_rootdir}/mera/")

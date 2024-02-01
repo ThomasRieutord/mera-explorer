@@ -128,9 +128,9 @@ toaswf_cfname = "toa_incoming_shortwave_flux"
 
 meraclimroot = "/data/trieutord/MERA/meraclim"
 merarootdir = "/data/trieutord/MERA/grib-all"
-npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example"
+npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example/samples"
 
-start = dt.datetime(2016, 1, 1)
+start = dt.datetime(2016, 1, 2)
 anchortimes = utils.datetime_arange(
     start, dt.datetime(2016, 2, 1) - utils.str_to_timedelta("72h"), "72h"
 )
@@ -158,15 +158,13 @@ for subset, anchortimes in anchorsplit.items():
     
         for cfname in cfnames:
             gribname = os.path.join(
-                merarootdir, gribs.get_mera_gribname(cfname, anchor, pathfromroot=True)
+                merarootdir, gribs.get_mera_gribname_valtime(cfname, anchor, pathfromroot=True)
             )
             if not os.path.isfile(gribname):
                 print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
                 continue
-    
-            grib = xr.open_dataset(gribname, engine="cfgrib")
-            varname = [_ for _ in grib.variables][-1]
-            x = grib[varname].sel(time=valtimes).to_numpy()
+            
+            x = gribs.get_data(gribname, valtimes)
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
             X.append(x)
         
@@ -177,11 +175,9 @@ for subset, anchortimes in anchorsplit.items():
         # TOA files
         # ---------
         gribname = os.path.join(
-            merarootdir, gribs.get_mera_gribname(toaswf_cfname, anchor, pathfromroot=True)
+            merarootdir, gribs.get_mera_gribname_valtime(toaswf_cfname, anchor, pathfromroot=True)
         )
-        grib = xr.open_dataset(gribname, engine="cfgrib")
-        varname = [_ for _ in grib.variables][-1]
-        x = grib[varname].sel(time=valtimes).to_numpy()
+        x = gribs.get_data(gribname, valtimes)
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
         
         np.save(os.path.join(npysavedir, toafilename), x)
