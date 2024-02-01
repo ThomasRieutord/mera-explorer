@@ -58,13 +58,19 @@ import easydict
 from pyproj import Transformer
 from mera_explorer import _repopath_
 
-writefiles = False
+writefiles = True
+dtype = np.float32
 meraclimroot = "/data/trieutord/MERA/meraclim"
 mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
 # meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
 
-sfx = xr.open_dataset(os.path.join(meraclimroot, "m05.grib"), engine='cfgrib', filter_by_keys={'typeOfLevel':'heightAboveGround'})
+os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok = True)
 
+sfx = xr.open_dataset(
+    os.path.join(meraclimroot, "m05.grib"),
+    engine="cfgrib",
+    filter_by_keys={"typeOfLevel": "heightAboveGround"},
+)
 
 
 # Create the orography file: surface_geopotential
@@ -73,13 +79,12 @@ orofile = os.path.join(mllamdataroot, "static", "surface_geopotential.npy")
 print(f"Orography file to be written in {orofile}")
 
 
-z = sfx.z.to_numpy()
-print(f"    z.shape={z.shape}")
+z = sfx.z.to_numpy().astype(dtype)
+print(f"    z.shape={z.shape} {z.dtype}")
 
 if writefiles:
     np.save(orofile, z)
     print(f"    Saved: {orofile}")
-
 
 
 # Create the geometry file: nwp_xy
@@ -87,25 +92,39 @@ if writefiles:
 xyfile = os.path.join(mllamdataroot, "static", "nwp_xy.npy")
 print(f"Geometry file to be written in {xyfile}")
 
-meregeomfile = os.path.join(_repopath_, "mera_explorer", "data", "mera-grid-geometry.yaml")
-assert os.path.isfile(meregeomfile), f"File with MERA geometry is missing at {meregeomfile}"
+meregeomfile = os.path.join(
+    _repopath_, "mera_explorer", "data", "mera-grid-geometry.yaml"
+)
+assert os.path.isfile(
+    meregeomfile
+), f"File with MERA geometry is missing at {meregeomfile}"
 
 with open(meregeomfile, "r") as f:
     geom = yaml.safe_load(f)
 
 g = easydict.EasyDict(geom["geometry"])
 meracrs = f"+proj=lcc +lat_0={g.projlat} +lon_0={g.projlon} +lat_1={g.projlon} +lat_2={g.projlat2} +x_0={g.polon} +y_0={g.polat} +datum=WGS84 +units=m +no_defs"
+
+# pp = easydict.EasyDict(constants.lambert_proj_params)
+# meracrs = f"+proj=lcc +lat_0={pp.lat_0} +lon_0={pp.lon_0} +lat_1={pp.lat_1} +lat_2={pp.lat_2} +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+
 crstrans = Transformer.from_crs("EPSG:4326", meracrs, always_xy=True)
 
-x, y = crstrans.transform(sfx.longitude.to_numpy(), sfx.latitude.to_numpy())
+x, y = crstrans.transform(sfx.longitude.to_numpy().astype(dtype), sfx.latitude.to_numpy().astype(dtype))
 
-xy = np.array([x, y])
-print(f"    xy.shape={xy.shape}")
+xy = np.array([x, y], dtype = dtype)
+print(f"""    constants.grid_limits = [
+        {x.min()}, #x.min
+        {x.max()}, #x.max
+        {y.min()}, #y.min
+        {y.max()}, #y.max
+    ]""")
+
+print(f"    xy.shape={xy.shape} {xy.dtype}")
 
 if writefiles:
     np.save(xyfile, xy)
     print(f"    Saved: {xyfile}")
-
 
 
 # Create the border file: border_mask
@@ -116,13 +135,11 @@ print(f"Border file to be written in {borfile}")
 xy = np.load(xyfile)
 border = np.ones_like(xy[0])
 border[10:-10, 10:-10] = 0
-print(f"    border.shape={border.shape}")
+print(f"    border.shape={border.shape} {border.dtype}")
 
 if writefiles:
     np.save(borfile, border)
     print(f"    Saved: {borfile}")
-    
-
 
 
 # Create the land/sea mask: wrt_mask
@@ -130,10 +147,9 @@ if writefiles:
 wrtfile = os.path.join(mllamdataroot, "static", "wrt_mask.npy")
 print(f"Land/sea mask file to be written in {wrtfile}")
 
-lsm = sfx.lsm.to_numpy()
-print(f"    lsm.shape={lsm.shape}")
+lsm = sfx.lsm.to_numpy().astype(dtype)
+print(f"    lsm.shape={lsm.shape} {lsm.dtype}")
 
 if writefiles:
     np.save(wrtfile, 1 - lsm)
     print(f"    Saved: {wrtfile}")
-    
