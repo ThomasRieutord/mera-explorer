@@ -31,6 +31,7 @@ import yaml
 import shutil
 import numpy as np
 import datetime as dt
+import xarray as xr
 from mera_explorer import utils, _repopath_
 
 # DATA
@@ -247,6 +248,48 @@ def get_date_from_gribname(gribname):
     
     return dt.datetime(int(year), int(month), 1)
 
+
+def get_data(gribname, valtimes, varidx = -1):
+    """Extract an Numpy array of data from the GRIB name.
+    
+    MERA GRIB files usually contain a single variable, therefore there is
+    no ambiguity on the data to be extracted. If needed, the variable to
+    be extracted can be changed with the `varidx` parameter. For cumulative
+    variables, the GRIB contains a 3-h forecast instead of a reanalysis and
+    we take the value at 3-h lead time.
+    
+    
+    Parameters
+    ----------
+    gribname: str
+        Path to the GRIB file
+        
+    valtimes: array-like of `datetime.datetime` of length n_t
+        List of validity times requested
+    
+    varidx: int
+        Index of the variable to be extracted. In MERA, the last variable
+        is usually the good one, therefore default is -1
+    
+    
+    Returns
+    -------
+    x: ndarray of shape (n_t, n_x, n_y)
+        Numpy array with the data contained in the GRIB file at the requested
+        validity times. 
+    """
+    grib = xr.open_dataset(gribname, engine="cfgrib")
+    varname = [_ for _ in grib.variables][varidx]
+    
+    if gribname.endswith("FC3hr"):
+        leadtime = utils.str_to_timedelta("3h")
+        basetimes = valtimes - leadtime
+        x = grib[varname].sel(time=basetimes, step=leadtime).to_numpy()
+    else:
+        x = grib[varname].sel(time=valtimes).to_numpy()
+    
+    return x
+
 def get_grib1id_from_gribname(gribname):
     """Extract the tuple (IOP, ITL, LEV, TRI) from the GRIB name."""
     gribname = os.path.basename(gribname)
@@ -254,7 +297,7 @@ def get_grib1id_from_gribname(gribname):
     
     return iop, itl, lev, tri
 
-def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = False):
+def get_mera_gribname(varname, basetime, stream = "ANALYSIS", pathfromroot = False):
     """Return the name of the MERA GRIB file corresponding to the given variable
     
     MERA GRIB files follows the convention described in [TN65]:
@@ -266,8 +309,8 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     varname: str or tuple of int
         Name of the variable. Either the CF standard name (str) or the tuple of GRIB1 indicators (IOP, ITL, LEV, TRI)
     
-    valtime: `datetime.datetime`
-        Time of validity of the data
+    basetime: `datetime.datetime`
+        Time at which the forecast was launch. For analysis, the base time equals the validity time.
     
     stream: str
         Stream of data ("ANALYSIS", "FC3hr" or "FC33hr")
@@ -286,12 +329,11 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     --------
     >>> import datetime as dt
     >>> get_mera_gribname("air_pressure_at_sea_level", dt.datetime(2017, 10, 16, 18))
-    >>> "MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS"
+    "MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS"
     
     >>> get_mera_gribname("air_pressure_at_sea_level", dt.datetime(2017, 10, 16, 18), pathfromroot = True)
-    >>> "mera/1/103/0/0/MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS"
+    "mera/1/103/0/0/MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS"
     """
-    
     if isinstance(varname, str):
         iop, itl, lev, tri = get_grib1id_from_cfname(varname)
     else:
@@ -300,7 +342,7 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
     gribname = "_".join(
         [
             str(s) for s in [
-                "MERA", "PRODYEAR", valtime.year, str(valtime.month).zfill(2), iop, itl, lev, tri, stream
+                "MERA", "PRODYEAR", basetime.year, str(basetime.month).zfill(2), iop, itl, lev, tri, stream
             ]
         ]
     )
@@ -308,6 +350,41 @@ def get_mera_gribname(varname, valtime, stream = "ANALYSIS", pathfromroot = Fals
         gribname = os.path.join(*[str(s) for s in ("mera", iop, itl, lev, tri)], gribname)
     
     return gribname
+
+def get_mera_gribname_valtime(varname, valtime, pathfromroot = False):
+    """Same as `get_mera_gribname` with a preprocessing to deal cumulative
+    variables. This preprocessing will ensure the provided GRIB contains
+    the request data by adjusting the time and the stream. Only 3-h accumulations
+    are supported.
+    
+    
+    Examples
+    --------
+    >>> import datetime as dt
+    >>> get_mera_gribname_valtime("air_pressure_at_sea_level", dt.datetime(2017, 1, 1, 3))
+    "MERA_PRODYEAR_2017_01_1_103_0_0_ANALYSIS"
+    
+    >>> get_mera_gribname_valtime("precipitation_amount", dt.datetime(2017, 1, 1, 3))
+    "MERA_PRODYEAR_2017_01_1_61_0_4_FC3hr"
+    
+    >>> get_mera_gribname_valtime("precipitation_amount", dt.datetime(2017, 1, 1, 0))
+    "MERA_PRODYEAR_2016_12_1_61_0_4_FC3hr"
+    """
+    
+    if isinstance(varname, str):
+        iop, itl, lev, tri = get_grib1id_from_cfname(varname)
+    else:
+        iop, itl, lev, tri = varname
+    
+    if tri == 4:
+        # Cumulated variable
+        basetime = valtime - utils.str_to_timedelta("3h")
+        stream = "FC3hr"
+    else:
+        basetime = valtime
+        stream = "ANALYSIS"
+    
+    return get_mera_gribname(varname, basetime, stream = stream, pathfromroot=pathfromroot)
 
 def expand_pathfromroot(gribname):
     """Returns the path from the MERA root directory (i.e. the mount point for the reaext* drives)
