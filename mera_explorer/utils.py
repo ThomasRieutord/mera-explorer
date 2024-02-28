@@ -124,4 +124,33 @@ def datetime_arange(start, stop, step):
     # return np.arange(start, stop, step, dtype="datetime64[m]")
     return np.arange(start, stop, step, dtype=dt.datetime)
 
+def subsample(x, step =2):
+    """Subsample geographical grid in Numpy array
+    
+    
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x = np.random.rand(489, 529)
+    >>> subsample(x).shape
+    (245, 265)
+    
+    >>> x = np.random.rand(22, 489, 529)
+    >>> subsample(x).shape
+    (22, 245, 265)
+    
+    >>> x = np.random.rand(22, 489, 529, 17)
+    >>> subsample(x).shape
+    (22, 245, 265, 17)
+    """
+    
+    if x.ndim == 2:
+        return x[::step, ::step]
+    elif x.ndim == 3:
+        return x[:, ::step, ::step]
+    elif x.ndim == 4:
+        return x[:, ::step, ::step, :]
+    else:
+        raise NotImplementedError("Only support arrays up to 4d")
+
 # EOF

@@ -37,6 +37,11 @@ from mera_explorer import utils, _repopath_
 # DATA
 # ====
 
+index_path = os.path.expanduser("~/tmp") # Path where the .idx files will be stored (must be directory with writing rights)
+# Sources (2024/02/28):
+# 1- https://github.com/pydata/xarray/issues/6512
+# 2- https://github.com/ecmwf/cfgrib/issues/275
+
 cfname_to_iop = {
     "air_pressure":1,
     "geopotential":6,
@@ -278,7 +283,13 @@ def get_data(gribname, valtimes, varidx = -1):
         Numpy array with the data contained in the GRIB file at the requested
         validity times. 
     """
-    grib = xr.open_dataset(gribname, engine="cfgrib")
+    grib = xr.open_dataset(
+        gribname,
+        engine="cfgrib",
+        backend_kwargs={
+            "indexpath": os.path.join(index_path, os.path.basename(gribname) + '.idx')
+        }
+    )
     varname = [_ for _ in grib.variables][varidx]
     
     if gribname.endswith("FC3hr"):

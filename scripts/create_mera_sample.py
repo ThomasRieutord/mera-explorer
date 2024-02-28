@@ -103,8 +103,11 @@ from mera_explorer import (
 )
 from mera_explorer.data import neurallam
 
+
+writefiles = False
+
 # cfnames = neurallam.neurallam_variables
-cfnames = [ # Order matters
+cfnames = [  # Order matters
     "air_pressure_at_surface_level",
     "air_pressure_at_sea_level",
     "net_upward_longwave_flux_in_air",
@@ -120,7 +123,7 @@ cfnames = [ # Order matters
     "eastward_wind_at_850_hPa",
     "northward_wind_at_850_hPa",
     "atmosphere_mass_content_of_water_vapor",
-    "atmosphere_mass_content_of_water_vapor",   # unused
+    "atmosphere_mass_content_of_water_vapor",  # unused
     "geopotential_at_500_hPa",
     "geopotential_at_1000_hPa",
 ]
@@ -128,7 +131,9 @@ toaswf_cfname = "toa_incoming_shortwave_flux"
 
 meraclimroot = "/data/trieutord/MERA/meraclim"
 merarootdir = "/data/trieutord/MERA/grib-all"
-npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example/samples"
+npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example_5km/samples"
+
+ss = lambda x: utils.subsample(x, 2)
 
 start = dt.datetime(2016, 1, 2)
 anchortimes = utils.datetime_arange(
@@ -142,54 +147,73 @@ anchorsplit = {
 
 for subset, anchortimes in anchorsplit.items():
     print(f"\n=== {subset.upper()} ===")
+    gribnames = []
     npysavedir = os.path.join(npyrootdir, subset)
-    os.makedirs(npysavedir, exist_ok = True)
-    
+    os.makedirs(npysavedir, exist_ok=True)
+
     for i_anchor, anchor in enumerate(anchortimes):
         npyfilename = "nwp_" + anchor.strftime("%Y%m%d%H") + "_mbr000.npy"
-        toafilename = "nwp_toa_downwelling_shortwave_flux_" + anchor.strftime("%Y%m%d%H") + ".npy"
+        toafilename = (
+            "nwp_toa_downwelling_shortwave_flux_" + anchor.strftime("%Y%m%d%H") + ".npy"
+        )
         wtrfilename = "wtr_" + anchor.strftime("%Y%m%d%H") + ".npy"
-        
+
         # NWP files
         # ---------
         X = []
         print(f"[{i_anchor + 1}/{anchortimes.size}]", anchor, npyfilename)
-        valtimes = utils.datetime_arange(anchor, anchor + utils.str_to_timedelta("65h"), "3h")
-    
+        valtimes = utils.datetime_arange(
+            anchor, anchor + utils.str_to_timedelta("65h"), "3h"
+        )
+
         for cfname in cfnames:
             gribname = os.path.join(
-                merarootdir, gribs.get_mera_gribname_valtime(cfname, anchor, pathfromroot=True)
+                merarootdir,
+                gribs.get_mera_gribname_valtime(cfname, anchor, pathfromroot=True),
             )
             if not os.path.isfile(gribname):
                 print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
                 continue
-            
-            x = gribs.get_data(gribname, valtimes)
+
+            x = ss(gribs.get_data(gribname, valtimes))
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
             X.append(x)
-        
-        np.save(os.path.join(npysavedir, npyfilename), np.stack(X, axis=-1))
-        print(f"\tSaved: {os.path.join(npysavedir, npyfilename)}")
-        
-        
+            gribnames.append(gribname)
+
+        if writefiles:
+            np.save(os.path.join(npysavedir, npyfilename), np.stack(X, axis=-1))
+            print(f"\tSaved: {os.path.join(npysavedir, npyfilename)}")
+
         # TOA files
         # ---------
         gribname = os.path.join(
-            merarootdir, gribs.get_mera_gribname_valtime(toaswf_cfname, anchor, pathfromroot=True)
+            merarootdir,
+            gribs.get_mera_gribname_valtime(toaswf_cfname, anchor, pathfromroot=True),
         )
-        x = gribs.get_data(gribname, valtimes)
+        x = ss(gribs.get_data(gribname, valtimes))
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
-        
-        np.save(os.path.join(npysavedir, toafilename), x)
-        print(f"\tSaved: {os.path.join(npysavedir, toafilename)}")
-        
-        
+        gribnames.append(gribname)
+
+        if writefiles:
+            np.save(os.path.join(npysavedir, toafilename), x)
+            print(f"\tSaved: {os.path.join(npysavedir, toafilename)}")
+
         # WRT files
         # ---------
-        sfx = xr.open_dataset(os.path.join(meraclimroot, "m05.grib"), engine='cfgrib', filter_by_keys={'typeOfLevel':'heightAboveGround'})
-        x = sfx.lsm.to_numpy()
+        sfx = xr.open_dataset(
+            os.path.join(meraclimroot, "m05.grib"),
+            engine="cfgrib",
+            filter_by_keys={"typeOfLevel": "heightAboveGround"},
+            backend_kwargs={
+                "indexpath": os.path.join(gribs.index_path, "m05.grib.idx")
+            },
+        )
+        x = ss(sfx.lsm.to_numpy())
         print("\t\tland_sea_mask", x.shape, x.min(), x.mean(), x.max())
-        
-        np.save(os.path.join(npysavedir, wtrfilename), x)
-        print(f"\tSaved: {os.path.join(npysavedir, wtrfilename)}")
 
+        if writefiles:
+            np.save(os.path.join(npysavedir, wtrfilename), x)
+            print(f"\tSaved: {os.path.join(npysavedir, wtrfilename)}")
+
+    print(f"\t{len(gribnames)} GRIB used:")
+    pprint(gribnames)
