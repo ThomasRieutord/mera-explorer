@@ -56,14 +56,15 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import easydict
 from pyproj import Transformer
-from mera_explorer import _repopath_
+from mera_explorer import _repopath_, utils
 
 writefiles = True
 dtype = np.float32
 meraclimroot = "/data/trieutord/MERA/meraclim"
-mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
+mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example_5km"
 # meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
 
+ss = lambda x: utils.subsample(x, 2)
 os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok = True)
 
 sfx = xr.open_dataset(
@@ -79,7 +80,7 @@ orofile = os.path.join(mllamdataroot, "static", "surface_geopotential.npy")
 print(f"Orography file to be written in {orofile}")
 
 
-z = sfx.z.to_numpy().astype(dtype)
+z = ss(sfx.z.to_numpy().astype(dtype))
 print(f"    z.shape={z.shape} {z.dtype}")
 
 if writefiles:
@@ -112,7 +113,7 @@ crstrans = Transformer.from_crs("EPSG:4326", meracrs, always_xy=True)
 
 x, y = crstrans.transform(sfx.longitude.to_numpy().astype(dtype), sfx.latitude.to_numpy().astype(dtype))
 
-xy = np.array([x, y], dtype = dtype)
+xy = ss(np.array([x, y], dtype = dtype))
 print(f"""    constants.grid_limits = [
         {x.min()}, #x.min
         {x.max()}, #x.max
@@ -147,7 +148,7 @@ if writefiles:
 wrtfile = os.path.join(mllamdataroot, "static", "wrt_mask.npy")
 print(f"Land/sea mask file to be written in {wrtfile}")
 
-lsm = sfx.lsm.to_numpy().astype(dtype)
+lsm = ss(sfx.lsm.to_numpy().astype(dtype))
 print(f"    lsm.shape={lsm.shape} {lsm.dtype}")
 
 if writefiles:
