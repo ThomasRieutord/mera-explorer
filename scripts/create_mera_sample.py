@@ -134,7 +134,7 @@ cfnames = [  # Order matters
 ]
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
-parser = argparse.ArgumentParser(prog="create_mera_sample_gen.py")
+parser = argparse.ArgumentParser(prog="create_mera_sample.py")
 parser.add_argument('--datadir', help="Path to MERA data directory")
 parser.add_argument('--outdir', help="Output data directory")
 parser.add_argument('--sdate', type=dt.datetime.fromisoformat, help="Start date in ISO format - YYYY-MM-DD")
