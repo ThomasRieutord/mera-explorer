@@ -4,6 +4,10 @@
 
 Program for creating samples for Neural-LAM
 
+USAGE -- example
+
+python create_mera_sample.py --datadir /data/trieutord/MERA/ --outdir data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-02 --edate 2015-02-01 --tstep 3h --tlag 65h
+
 
 Target tree of files
 --------------------
@@ -89,6 +93,7 @@ nwp_2022040100_mbr000: 21 3-hourly analysis starting at 2022-04-01 00Z (member i
         control_only = True
 """
 
+
 import os
 import numpy as np
 import datetime as dt
@@ -102,9 +107,9 @@ from mera_explorer import (
     utils,
 )
 from mera_explorer.data import neurallam
+import argparse
 
-
-writefiles = False
+writefiles = True
 
 # cfnames = neurallam.neurallam_variables
 cfnames = [  # Order matters
@@ -129,15 +134,27 @@ cfnames = [  # Order matters
 ]
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
-meraclimroot = "/data/trieutord/MERA/meraclim"
-merarootdir = "/data/trieutord/MERA/grib-all"
-npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example_5km/samples"
+parser = argparse.ArgumentParser(prog="create_mera_sample_gen.py")
+parser.add_argument('--datadir', help="Path to MERA data directory")
+parser.add_argument('--outdir', help="Output data directory")
+parser.add_argument('--sdate', type=dt.datetime.fromisoformat, help="Start date in ISO format - YYYY-MM-DD")
+parser.add_argument('--edate', type=dt.datetime.fromisoformat, help="End date in ISO format - YYYY-MM-DD")
+parser.add_argument('--tstep', help="Time step for file creation", default="3h")
+parser.add_argument('--tlag', help="Forecast time", default="65h")
+args=parser.parse_args()
+
+meraclimroot = args.datadir+"meraclim"
+merarootdir = args.datadir+"grib-all"
+npyrootdir = args.outdir
+
 
 ss = lambda x: utils.subsample(x, 2)
 
-start = dt.datetime(2016, 1, 2)
+
+start = args.sdate 
+print(start)
 anchortimes = utils.datetime_arange(
-    start, dt.datetime(2016, 2, 1) - utils.str_to_timedelta("72h"), "72h"
+    start, args.edate - utils.str_to_timedelta("72h"), "72h"
 )
 anchorsplit = {
     "train": anchortimes[:4],
@@ -163,7 +180,7 @@ for subset, anchortimes in anchorsplit.items():
         X = []
         print(f"[{i_anchor + 1}/{anchortimes.size}]", anchor, npyfilename)
         valtimes = utils.datetime_arange(
-            anchor, anchor + utils.str_to_timedelta("65h"), "3h"
+            anchor, anchor + utils.str_to_timedelta(args.tlag), args.tstep
         )
 
         for cfname in cfnames:
