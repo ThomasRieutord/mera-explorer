@@ -6,7 +6,7 @@ Program for creating samples for Neural-LAM
 
 USAGE -- example
 
-python create_mera_sample.py --datadir /data/trieutord/MERA/ --outdir data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-02 --edate 2015-02-01 --tstep 3h --tlag 65h
+python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-02 --edate 2015-02-01 --tstep 3h --tlag 65h
 
 
 Target tree of files
@@ -135,16 +135,17 @@ cfnames = [  # Order matters
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
 parser = argparse.ArgumentParser(prog="create_mera_sample.py")
-parser.add_argument('--datadir', help="Path to MERA data directory")
+parser.add_argument('--indirclim', help="Path to MERA data climatology directory")
+parser.add_argument('--indirgrib', help="Path to MERA data directory")
 parser.add_argument('--outdir', help="Output data directory")
-parser.add_argument('--sdate', type=dt.datetime.fromisoformat, help="Start date in ISO format - YYYY-MM-DD")
-parser.add_argument('--edate', type=dt.datetime.fromisoformat, help="End date in ISO format - YYYY-MM-DD")
+parser.add_argument('--sdate', type=dt.datetime.fromisoformat, help="Start date in ISO format - YYYY-MM-DD:HH")
+parser.add_argument('--edate', type=dt.datetime.fromisoformat, help="End date in ISO format - YYYY-MM-DD:HH")
 parser.add_argument('--tstep', help="Time step for file creation", default="3h")
 parser.add_argument('--tlag', help="Forecast time", default="65h")
 args=parser.parse_args()
 
-meraclimroot = args.datadir+"meraclim"
-merarootdir = args.datadir+"grib-all"
+meraclimroot = args.indirclim
+merarootdir = args.indirgrib
 npyrootdir = args.outdir
 
 
@@ -152,7 +153,6 @@ ss = lambda x: utils.subsample(x, 2)
 
 
 start = args.sdate 
-print(start)
 anchortimes = utils.datetime_arange(
     start, args.edate - utils.str_to_timedelta("72h"), "72h"
 )
