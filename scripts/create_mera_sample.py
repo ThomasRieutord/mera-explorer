@@ -6,7 +6,7 @@ Program for creating samples for Neural-LAM
 
 USAGE -- example
 
-python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-02 --edate 2015-02-01 --tstep 3h --tlag 65h
+python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-01 --edate 2015-03-01 --tstep 3h --tlag 65h --textract 72h
 
 
 Target tree of files
@@ -142,6 +142,7 @@ parser.add_argument('--sdate', type=dt.datetime.fromisoformat, help="Start date 
 parser.add_argument('--edate', type=dt.datetime.fromisoformat, help="End date in ISO format - YYYY-MM-DD:HH")
 parser.add_argument('--tstep', help="Time step for file creation", default="3h")
 parser.add_argument('--tlag', help="Forecast time", default="65h")
+parser.add_argument('--textract', help="Frequency of files to be extracted", default="72h")
 args=parser.parse_args()
 
 meraclimroot = args.indirclim
@@ -153,13 +154,13 @@ ss = lambda x: utils.subsample(x, 2)
 
 
 start = args.sdate 
-anchortimes = utils.datetime_arange(
-    start, args.edate - utils.str_to_timedelta("72h"), "72h"
-)
+anchortimes = utils.datetime_arange(start, args.edate, args.textract)
+
+length_split=int(len(anchortimes)/3)
 anchorsplit = {
-    "train": anchortimes[:4],
-    "test": anchortimes[4:7],
-    "val": anchortimes[7:],
+    "train": anchortimes[:length_split],
+    "test": anchortimes[length_split:length_split*2],
+    "val": anchortimes[length_split*2:],
 }
 
 for subset, anchortimes in anchorsplit.items():
@@ -184,32 +185,56 @@ for subset, anchortimes in anchorsplit.items():
         )
 
         for cfname in cfnames:
-            gribname = os.path.join(
-                merarootdir,
-                gribs.get_mera_gribname_valtime(cfname, anchor, pathfromroot=True),
-            )
-            if not os.path.isfile(gribname):
-                print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
-                continue
+            count=0
+            for val_t in valtimes:
+                gribname = os.path.join(
+                    merarootdir,
+                    gribs.get_mera_gribname_valtime(cfname, val_t, pathfromroot=True),
+                )
+                if not os.path.isfile(gribname):
+                    print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
+                    continue
 
-            x = ss(gribs.get_data(gribname, valtimes))
+                if count==0:
+                    x = ss(gribs.get_data(gribname, val_t))
+                else:
+                    x_t = ss(gribs.get_data(gribname,val_t))
+                    x = np.dstack((x,x_t))
+
+                count+=1
+
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
+
             X.append(x)
             gribnames.append(gribname)
 
+
+            
+            
         if writefiles:
             np.save(os.path.join(npysavedir, npyfilename), np.stack(X, axis=-1))
             print(f"\tSaved: {os.path.join(npysavedir, npyfilename)}")
 
         # TOA files
         # ---------
-        gribname = os.path.join(
-            merarootdir,
-            gribs.get_mera_gribname_valtime(toaswf_cfname, anchor, pathfromroot=True),
-        )
-        x = ss(gribs.get_data(gribname, valtimes))
+        count=0
+        for val_t in valtimes:
+            gribname = os.path.join(
+                merarootdir,
+                gribs.get_mera_gribname_valtime(toaswf_cfname, val_t, pathfromroot=True),
+             )
+
+            if count==0:
+               x = ss(gribs.get_data(gribname, val_t))
+            else:
+               x_t = ss(gribs.get_data(gribname,val_t))
+               x = np.dstack((x,x_t))
+
+            count+=1
+      
+            gribnames.append(gribname)
+        
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
-        gribnames.append(gribname)
 
         if writefiles:
             np.save(os.path.join(npysavedir, toafilename), x)
