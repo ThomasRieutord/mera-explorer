@@ -57,11 +57,23 @@ import matplotlib.pyplot as plt
 import easydict
 from pyproj import Transformer
 from mera_explorer import _repopath_, utils
+import argparse
 
 writefiles = True
 dtype = np.float32
-meraclimroot = "/data/trieutord/MERA/meraclim"
-mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example_5km"
+
+"""
+USAGE -- example:
+python create_static_features.py --indirclim /data/trieutord/MERA/meraclim --indirmllam /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca
+"""
+parser = argparse.ArgumentParser(prog="create_static_features.py")
+parser.add_argument('--indirclim', help="Path to MERA climatology directory")
+parser.add_argument('--indirmllam', help="Path to the data sample for Neural-LAM (from create_mera_sample.py")
+args=parser.parse_args()
+
+meraclimroot = args.indirclim
+mllamdataroot = args.indirmllam
+
 # meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
 
 ss = lambda x: utils.subsample(x, 2)

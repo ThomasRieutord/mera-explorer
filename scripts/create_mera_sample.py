@@ -6,7 +6,7 @@ Program for creating samples for Neural-LAM
 
 USAGE -- example
 
-python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2015-01-01 --edate 2015-03-01 --tstep 3h --tlag 65h --textract 72h
+python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2014-01-01 --edate 2016-12-31 --tstep 3h --tlag 65h --textract 72h
 
 
 Target tree of files
@@ -202,13 +202,13 @@ for subset, anchortimes in anchorsplit.items():
                     x = np.dstack((x,x_t))
 
                 count+=1
-
+            x=np.swapaxes(x,0,2)
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
 
             X.append(x)
             gribnames.append(gribname)
 
-
+        
             
             
         if writefiles:
@@ -234,6 +234,7 @@ for subset, anchortimes in anchorsplit.items():
       
             gribnames.append(gribname)
         
+        x=np.swapaxes(x,0,2)
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
 
         if writefiles:
