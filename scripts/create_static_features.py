@@ -64,7 +64,7 @@ dtype = np.float32
 
 """
 USAGE -- example:
-python create_static_features.py --indirclim /data/trieutord/MERA/meraclim --indirmllam /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca
+python create_static_features.py --indirclim /data/trieutord/MERA/meraclim --indirmllam /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca2
 """
 parser = argparse.ArgumentParser(prog="create_static_features.py")
 parser.add_argument('--indirclim', help="Path to MERA climatology directory")
