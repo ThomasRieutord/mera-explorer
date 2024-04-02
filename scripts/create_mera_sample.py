@@ -203,6 +203,7 @@ for subset, anchortimes in anchorsplit.items():
 
                 count+=1
             x=np.swapaxes(x,0,2)
+            x=np.swapaxes(x,1,2)
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
 
             X.append(x)
@@ -235,6 +236,7 @@ for subset, anchortimes in anchorsplit.items():
             gribnames.append(gribname)
         
         x=np.swapaxes(x,0,2)
+        x=np.swapaxes(x,1,2)
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
 
         if writefiles:
