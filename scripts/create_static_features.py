@@ -55,16 +55,17 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import easydict
+from pprint import pprint
 from pyproj import Transformer
 from mera_explorer import _repopath_, utils
 
-writefiles = True
+writefiles = False
 dtype = np.float32
 meraclimroot = "/data/trieutord/MERA/meraclim"
-mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example_5km"
+mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
 # meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
 
-ss = lambda x: utils.subsample(x, 2)
+ss = lambda x: utils.subsample(x, 1)
 os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok = True)
 
 sfx = xr.open_dataset(
@@ -114,12 +115,7 @@ crstrans = Transformer.from_crs("EPSG:4326", meracrs, always_xy=True)
 x, y = crstrans.transform(sfx.longitude.to_numpy().astype(dtype), sfx.latitude.to_numpy().astype(dtype))
 
 xy = ss(np.array([x, y], dtype = dtype))
-print(f"""    constants.grid_limits = [
-        {x.min()}, #x.min
-        {x.max()}, #x.max
-        {y.min()}, #y.min
-        {y.max()}, #y.max
-    ]""")
+
 
 print(f"    xy.shape={xy.shape} {xy.dtype}")
 
@@ -154,3 +150,30 @@ print(f"    lsm.shape={lsm.shape} {lsm.dtype}")
 if writefiles:
     np.save(wrtfile, 1 - lsm)
     print(f"    Saved: {wrtfile}")
+
+
+# Create the constants file: constants.yaml
+# -------------------------
+cstfile = os.path.join(mllamdataroot, "static", "constants.yaml")
+constants = {
+    "DATASETNAME": os.path.basename(mllamdataroot),
+    "N_TIMESTEPS_PER_FILE": 21,
+    "GRID_SHAPE": list(lsm.shape),
+    "GRID_LIMITS":np.array([x.min(), x.max(), y.min(), y.max()]).tolist(),
+    "LAMBERT_PROJ_PARAMS":{
+        "a": 6367470,
+        "b": 6367470,
+        "lat_0": g.projlat,
+        "lat_1": g.projlat,
+        "lat_2": g.projlat2,
+        "lon_0": g.projlon,
+        "proj": "lcc",
+    },
+}
+pprint(constants)
+if writefiles:
+    with open(cstfile, 'w') as yf:
+        yaml.dump(constants, yf)
+
+with open(cstfile, 'r') as yf:
+    cst = yaml.safe_load(yf)
