@@ -4,6 +4,10 @@
 
 Program for creating samples for Neural-LAM
 
+USAGE -- example
+
+python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgrib /data/trieutord/MERA/grib-all --outdir /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca/samples --sdate 2014-01-01 --edate 2016-12-31 --tstep 3h --tlag 65h --textract 72h
+
 
 Target tree of files
 --------------------
@@ -89,6 +93,7 @@ nwp_2022040100_mbr000: 21 3-hourly analysis starting at 2022-04-01 00Z (member i
         control_only = True
 """
 
+
 import os
 import numpy as np
 import datetime as dt
@@ -102,9 +107,9 @@ from mera_explorer import (
     utils,
 )
 from mera_explorer.data import neurallam
+import argparse
 
-
-writefiles = False
+writefiles = True
 
 # cfnames = neurallam.neurallam_variables
 cfnames = [  # Order matters
@@ -129,20 +134,43 @@ cfnames = [  # Order matters
 ]
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
-meraclimroot = "/data/trieutord/MERA/meraclim"
-merarootdir = "/data/trieutord/MERA/grib-all"
-npyrootdir = "/home/trieutord/Works/neural-lam/data/mera_example_5km/samples"
+parser = argparse.ArgumentParser(prog="create_mera_sample.py")
+parser.add_argument("--indirclim", help="Path to MERA data climatology directory")
+parser.add_argument("--indirgrib", help="Path to MERA data directory")
+parser.add_argument("--outdir", help="Output data directory")
+parser.add_argument(
+    "--sdate",
+    type=dt.datetime.fromisoformat,
+    help="Start date in ISO format - YYYY-MM-DD:HH",
+)
+parser.add_argument(
+    "--edate",
+    type=dt.datetime.fromisoformat,
+    help="End date in ISO format - YYYY-MM-DD:HH",
+)
+parser.add_argument("--tstep", help="Time step for file creation", default="3h")
+parser.add_argument("--tlag", help="Forecast time", default="65h")
+parser.add_argument(
+    "--textract", help="Frequency of files to be extracted", default="72h"
+)
+args = parser.parse_args()
+
+meraclimroot = args.indirclim
+merarootdir = args.indirgrib
+npyrootdir = args.outdir
+
 
 ss = lambda x: utils.subsample(x, 2)
 
-start = dt.datetime(2016, 1, 2)
-anchortimes = utils.datetime_arange(
-    start, dt.datetime(2016, 2, 1) - utils.str_to_timedelta("72h"), "72h"
-)
+
+start = args.sdate
+anchortimes = utils.datetime_arange(start, args.edate, args.textract)
+
+length_split = int(len(anchortimes) / 3)
 anchorsplit = {
-    "train": anchortimes[:4],
-    "test": anchortimes[4:7],
-    "val": anchortimes[7:],
+    "train": anchortimes[:length_split],
+    "test": anchortimes[length_split : length_split * 2],
+    "val": anchortimes[length_split * 2 :],
 }
 
 for subset, anchortimes in anchorsplit.items():
@@ -163,20 +191,31 @@ for subset, anchortimes in anchorsplit.items():
         X = []
         print(f"[{i_anchor + 1}/{anchortimes.size}]", anchor, npyfilename)
         valtimes = utils.datetime_arange(
-            anchor, anchor + utils.str_to_timedelta("65h"), "3h"
+            anchor, anchor + utils.str_to_timedelta(args.tlag), args.tstep
         )
 
         for cfname in cfnames:
-            gribname = os.path.join(
-                merarootdir,
-                gribs.get_mera_gribname_valtime(cfname, anchor, pathfromroot=True),
-            )
-            if not os.path.isfile(gribname):
-                print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
-                continue
+            count = 0
+            for val_t in valtimes:
+                gribname = os.path.join(
+                    merarootdir,
+                    gribs.get_mera_gribname_valtime(cfname, val_t, pathfromroot=True),
+                )
+                if not os.path.isfile(gribname):
+                    print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
+                    continue
 
-            x = ss(gribs.get_data(gribname, valtimes))
+                if count == 0:
+                    x = ss(gribs.get_data(gribname, val_t))
+                else:
+                    x_t = ss(gribs.get_data(gribname, val_t))
+                    x = np.dstack((x, x_t))
+
+                count += 1
+            x = np.swapaxes(x, 0, 2)
+            x = np.swapaxes(x, 1, 2)
             print("\t\t", cfname, x.shape, x.min(), x.mean(), x.max())
+
             X.append(x)
             gribnames.append(gribname)
 
@@ -186,13 +225,28 @@ for subset, anchortimes in anchorsplit.items():
 
         # TOA files
         # ---------
-        gribname = os.path.join(
-            merarootdir,
-            gribs.get_mera_gribname_valtime(toaswf_cfname, anchor, pathfromroot=True),
-        )
-        x = ss(gribs.get_data(gribname, valtimes))
+        count = 0
+        for val_t in valtimes:
+            gribname = os.path.join(
+                merarootdir,
+                gribs.get_mera_gribname_valtime(
+                    toaswf_cfname, val_t, pathfromroot=True
+                ),
+            )
+
+            if count == 0:
+                x = ss(gribs.get_data(gribname, val_t))
+            else:
+                x_t = ss(gribs.get_data(gribname, val_t))
+                x = np.dstack((x, x_t))
+
+            count += 1
+
+            gribnames.append(gribname)
+
+        x = np.swapaxes(x, 0, 2)
+        x = np.swapaxes(x, 1, 2)
         print("\t\t", toaswf_cfname, x.shape, x.min(), x.mean(), x.max())
-        gribnames.append(gribname)
 
         if writefiles:
             np.save(os.path.join(npysavedir, toafilename), x)

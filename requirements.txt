@@ -7,8 +7,6 @@ h5py>=3.9
 tqdm>=4.65
 easydict>=1.9
 psutil>=5.9
-eccodes>=1.6.1
-cfgrib>=0.9.10
-xarray>=2024.1
 paramiko>=3.4
 pyproj>=3.6
+pyyaml

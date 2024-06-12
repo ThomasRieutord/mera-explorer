@@ -58,15 +58,28 @@ import easydict
 from pprint import pprint
 from pyproj import Transformer
 from mera_explorer import _repopath_, utils
+import argparse
 
 writefiles = False
 dtype = np.float32
-meraclimroot = "/data/trieutord/MERA/meraclim"
-mllamdataroot = "/home/trieutord/Works/neural-lam/data/mera_example"
-# meragribfile = "/data/trieutord/MERA/grib-sample-3GB/mera/34/105/10/0/MERA_PRODYEAR_2017_09_34_105_10_0_ANALYSIS"
+
+parser = argparse.ArgumentParser(
+    prog="create_static_features.py",
+    description="Create static features for Neural-LAM",
+    epilog="Example: python create_static_features.py --indirclim /data/trieutord/MERA/meraclim --outdirmllam /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca2",
+)
+parser.add_argument("--indirclim", help="Path to MERA climatology directory")
+parser.add_argument(
+    "--outdirmllam",
+    help="Path to the data sample for Neural-LAM (from create_mera_sample.py)",
+)
+args = parser.parse_args()
+
+meraclimroot = args.indirclim
+mllamdataroot = args.outdirmllam
 
 ss = lambda x: utils.subsample(x, 1)
-os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok = True)
+os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok=True)
 
 sfx = xr.open_dataset(
     os.path.join(meraclimroot, "m05.grib"),
@@ -112,9 +125,11 @@ meracrs = f"+proj=lcc +lat_0={g.projlat} +lon_0={g.projlon} +lat_1={g.projlon} +
 
 crstrans = Transformer.from_crs("EPSG:4326", meracrs, always_xy=True)
 
-x, y = crstrans.transform(sfx.longitude.to_numpy().astype(dtype), sfx.latitude.to_numpy().astype(dtype))
+x, y = crstrans.transform(
+    sfx.longitude.to_numpy().astype(dtype), sfx.latitude.to_numpy().astype(dtype)
+)
 
-xy = ss(np.array([x, y], dtype = dtype))
+xy = ss(np.array([x, y], dtype=dtype))
 
 
 print(f"    xy.shape={xy.shape} {xy.dtype}")
@@ -159,8 +174,8 @@ constants = {
     "DATASETNAME": os.path.basename(mllamdataroot),
     "N_TIMESTEPS_PER_FILE": 21,
     "GRID_SHAPE": list(lsm.shape),
-    "GRID_LIMITS":np.array([x.min(), x.max(), y.min(), y.max()]).tolist(),
-    "LAMBERT_PROJ_PARAMS":{
+    "GRID_LIMITS": np.array([x.min(), x.max(), y.min(), y.max()]).tolist(),
+    "LAMBERT_PROJ_PARAMS": {
         "a": 6367470,
         "b": 6367470,
         "lat_0": g.projlat,
@@ -172,8 +187,8 @@ constants = {
 }
 pprint(constants)
 if writefiles:
-    with open(cstfile, 'w') as yf:
+    with open(cstfile, "w") as yf:
         yaml.dump(constants, yf)
 
-with open(cstfile, 'r') as yf:
+with open(cstfile, "r") as yf:
     cst = yaml.safe_load(yf)
