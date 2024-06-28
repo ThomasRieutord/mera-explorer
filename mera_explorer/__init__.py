@@ -6,9 +6,11 @@ https://github.com/ThomasRieutord/mera-explorer
 """
 import os
 
-_repopath_ = os.path.split(__path__[0])[0]
+PACKAGE_DIRECTORY = os.path.split(__path__[0])[0]
+MERAROOTDIR = "/data/trieutord/MERA/grib-all"
+MERACLIMDIR = "/data/trieutord/MERA/meraclim"
 
-with open(os.path.join(_repopath_, "setup.py"), "r") as f:
+with open(os.path.join(PACKAGE_DIRECTORY, "setup.py"), "r") as f:
     for l in f.readlines():
         if "version=" in l:
             __version__ = l.split('"')[1]

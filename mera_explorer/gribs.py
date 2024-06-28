@@ -31,8 +31,9 @@ import yaml
 import shutil
 import numpy as np
 import datetime as dt
+import eccodes as ecc
 import xarray as xr
-from mera_explorer import utils, _repopath_
+from mera_explorer import utils, PACKAGE_DIRECTORY
 
 # DATA
 # ====
@@ -202,6 +203,28 @@ def add_vlevel_to_fieldnames(lfn, lvlvl, vlvl_unit = "hPa"):
     
     return lfnv
 
+def check_grib(outgribname):
+    with open(outgribname, 'rb') as fin:
+        messages = []
+        print(f"There are {ecc.codes_count_in_file(fin)} messages in {outgribname}")
+        while 1:
+            gid = ecc.codes_grib_new_from_file(fin)
+            if gid is None:
+                break
+            
+            iterid = ecc.codes_keys_iterator_new(gid, 'ls')
+            print("\n-------")
+            keys = {}
+            while ecc.codes_keys_iterator_next(iterid):
+                keyname = ecc.codes_keys_iterator_get_name(iterid)
+                keyval = ecc.codes_get_string(gid, keyname)
+                keys[keyname] = keyval
+                print(f"{keyname} = {keyval}")
+            
+            messages.append(keys)
+            ecc.codes_keys_iterator_delete(iterid)
+            ecc.codes_release(gid)
+
 def get_grib1id_from_cfname(cfname):
     """Return the tuple (IOP, ITL, LEV, TRI) corresponding to the given CF standard name.
     
@@ -246,13 +269,12 @@ def get_grib1id_from_cfname(cfname):
     
     return iop, itl, lev, tri
 
-def get_date_from_gribname(gribname):
+def get_date_from_gribname(gribname) -> dt.datetime:
     """Extract the date (1st of the month) from the GRIB name."""
     gribname = os.path.basename(gribname)
     _, _, year, month, _, _, _, _, _ = gribname.split("_")
     
     return dt.datetime(int(year), int(month), 1)
-
 
 def get_data(gribname, valtimes, varidx = -1):
     """Extract an Numpy array of data from the GRIB name.
@@ -456,7 +478,7 @@ def get_filesystem_host_and_root(fsname):
     >>> print(f"scp {hostname}:{abspath_to_grib} .")
     scp realin15:/run/media/trieutord/reaext03/mera/11/105/2/0/MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS .
     """
-    fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+    fstxt = os.path.join(PACKAGE_DIRECTORY, "filesystems", f"merafiles_{fsname}.txt")
     
     hostname, meraroot = "", ""
     
@@ -517,7 +539,7 @@ def list_mera_gribnames(fsname, keep = None):
                 
     else:
         # When a file is passed, it contains the list of files in the file system
-        fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{fsname}.txt")
+        fstxt = os.path.join(PACKAGE_DIRECTORY, "filesystems", f"merafiles_{fsname}.txt")
         assert os.path.isfile(fstxt), f"Could not find the file: {fstxt}"
         with open(fstxt, "r") as f:
             for l in f:
