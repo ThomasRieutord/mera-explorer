@@ -32,13 +32,14 @@ import shutil
 import numpy as np
 import datetime as dt
 import eccodes as ecc
+import epygram
 import xarray as xr
 from mera_explorer import utils, PACKAGE_DIRECTORY
 
 # DATA
 # ====
 
-index_path = os.path.expanduser("~/tmp") # Path where the .idx files will be stored (must be directory with writing rights)
+INDEX_PATH = os.path.expanduser("~/tmp") # Path where the .idx files will be stored (must be directory with writing rights)
 # Sources (2024/02/28):
 # 1- https://github.com/pydata/xarray/issues/6512
 # 2- https://github.com/ecmwf/cfgrib/issues/275
@@ -98,6 +99,7 @@ cfname_to_iop = {
     "x_wind_gust":162,
     "y_wind_gust":163,
 }
+iop_to_cfname = {v:k for k,v in cfname_to_iop.items()}
 
 cfname_to_default_grib1id = {
     # Taken from [TN65]
@@ -160,7 +162,12 @@ unit_to_itl = {
     # 103: Specified altitude above mean sea level
     # 200: Entire atmosphere
 }
+itl_to_unit = {v:k for k,v in unit_to_itl.items()}
+itl_to_unit[103] = "sea_level"
 
+cfnames_without_at = [
+    k for k,v in cfname_to_default_grib1id.items() if v[3] !=0 or v[1] == 200
+]
 
 # FUNCTIONS
 # =========
@@ -269,6 +276,22 @@ def get_grib1id_from_cfname(cfname):
     
     return iop, itl, lev, tri
 
+def get_cfname_from_grib1id(iop, itl, lev):
+    base_quantity = iop_to_cfname[int(iop)]
+    if base_quantity in cfnames_without_at:
+        return base_quantity
+    else:
+        unit = itl_to_unit[int(itl)]
+        # Case of "air_pressure_at_sea_level" and "air_pressure_at_surface_level"
+        if unit == "sea_level":
+            lev = "sea"
+            unit = "level"
+        if unit == "metres" and lev == 0:
+            lev = "surface"
+            unit = "level"
+            
+        return f"{base_quantity}_at_{lev}_{unit}"
+
 def get_date_from_gribname(gribname) -> dt.datetime:
     """Extract the date (1st of the month) from the GRIB name."""
     gribname = os.path.basename(gribname)
@@ -309,7 +332,7 @@ def get_data(gribname, valtimes, varidx = -1):
         gribname,
         engine="cfgrib",
         backend_kwargs={
-            "indexpath": os.path.join(index_path, os.path.basename(gribname) + '.idx')
+            "indexpath": os.path.join(INDEX_PATH, os.path.basename(gribname) + '.idx')
         }
     )
     varname = [_ for _ in grib.variables][varidx]
@@ -548,6 +571,20 @@ def list_mera_gribnames(fsname, keep = None):
                     merafilenames.append(l)
     
     return merafilenames
+
+def read_multimessage_grib(gribname):
+    grib = epygram.formats.resource(gribname, "r")
+    data = {}
+    for hg in grib.listfields():
+        cfname = get_cfname_from_grib1id(
+            hg['indicatorOfParameter'],
+            hg['indicatorOfTypeOfLevel'],
+            hg['level'],
+        )
+        fd = grib.readfield(hg)
+        data[cfname] = fd.getdata()
+    
+    return data
 
 def read_variables_from_yaml(yaml_file):
     """Read the set of variables given in a yaml file. Vertical levels are expanded if necessary

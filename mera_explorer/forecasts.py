@@ -37,6 +37,7 @@ import numpy as np
 import datetime as dt
 import climetlab as cml
 import xarray as xr
+import warnings
 
 from mera_explorer import utils, gribs, MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY
 
@@ -141,6 +142,19 @@ def write_in_grib(data, template, outgribname):
     print(f"Written: {outgribname}")
     return outgribname
 
+def concatenate_states(states):
+    nt = len(states)
+    nv = len(states[0].keys())
+    key = list(states[0].keys())[0]
+    nx, ny = states[0][key].shape
+    concat_states = np.zeros((nt, nx*ny, nv))
+    for i_t, state in enumerate(states):    # len(states) = nt
+        for i_v, key in enumerate(state.keys()):    # len(state.keys) = nv
+            concat_states[i_t, :, i_v] = state[key].ravel() # (nx, ny)
+        
+    
+    return concat_states # (nt, nx*ny, nv)
+
 def create_analysis(basetime, cfnames, max_leadtime, inferenceid, step = dt.timedelta(hours=3)):
     basetime = utils.str_to_datetime(basetime)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
@@ -212,22 +226,25 @@ def create_forcings(basetime, max_leadtime, inferenceid, step = dt.timedelta(hou
     
     toaswf = np.swapaxes(toaswf, 0, 2)
     toaswf = np.swapaxes(toaswf, 1, 2)
-    # print("\t\t", toaswf_cfname, toaswf.shape, toaswf.min(), toaswf.mean(), toaswf.max())
     
     
     # WRT files
-    sfx = xr.open_dataset(
-        os.path.join(MERACLIMDIR, "m05.grib"),
-        engine="cfgrib",
-        filter_by_keys={"typeOfLevel": "heightAboveGround"},
-        backend_kwargs={
-            "indexpath": os.path.join(gribs.index_path, "m05.grib.idx")
-        },
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # SerializationWarning: Unable to decode time axis into full numpy.datetime64 objects, continuing using cftime.datetime objects instead, reason: dates out of range
+        sfx = xr.open_dataset(
+            os.path.join(MERACLIMDIR, "m05.grib"),
+            engine="cfgrib",
+            filter_by_keys={"typeOfLevel": "heightAboveGround"},
+            backend_kwargs={
+                "indexpath": os.path.join(gribs.INDEX_PATH, "m05.grib.idx")
+            },
+        )
+    
     lsm = sfx.lsm.to_numpy()
     # print("\t\tland_sea_mask", lsm.shape, lsm.min(), lsm.mean(), lsm.max())
 
-    nx, ny = lsm.shape
+    nt, nx, ny = toaswf.shape
     ds = xr.Dataset(
         {
             toaswf_cfname: (("t", "x", "y"), toaswf),
@@ -243,7 +260,6 @@ def create_forcings(basetime, max_leadtime, inferenceid, step = dt.timedelta(hou
     
     return forcings_file
 
-
 def create_mera_analysis_and_forcings(startdate, enddate, max_leadtime = "54h", textract = "72h"):
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     cfnames = gribs.read_variables_from_yaml(os.path.join(PACKAGE_DIRECTORY, "mera_explorer", "data", "neurallam.yaml"))
@@ -251,3 +267,91 @@ def create_mera_analysis_and_forcings(startdate, enddate, max_leadtime = "54h", 
         create_analysis(basetime, cfnames, max_leadtime = "54h", inferenceid = "mera")
         forcings_file = create_forcings(basetime, max_leadtime = "54h", inferenceid = "mera")
         print(f"[{i_bt}/{len(basetimes)}] Basetime {basetime} written in {os.path.dirname(forcings_file)}")
+
+def get_datetime_forcing(datetimes, n_grid = None):
+    start_of_year = dt.datetime(datetimes[0].year, 1, 1)
+    seconds_into_year = np.array([(_ - start_of_year).total_seconds() for _ in datetimes])
+    year_angle = (seconds_into_year * 2 * np.pi) / (365 * 24 * 3600) 
+    hours_into_day = np.array([_.hour for _ in datetimes])
+    hour_angle = (hours_into_day * 2 * np.pi) / 24
+    datetime_forcing = np.stack(
+        [
+            np.sin(hour_angle),
+            np.cos(hour_angle),
+            np.sin(year_angle),
+            np.cos(year_angle),
+        ]
+    )
+    if n_grid is not None:
+        nf, nt = datetime_forcing.shape
+        datetime_forcing = np.broadcast_to(datetime_forcing, (n_grid, nf, nt)) # (n_grid, nf, nt)
+        datetime_forcing = np.moveaxis(datetime_forcing, (0,1,2), (1,2,0)) # (nt, n_grid, nf)
+    
+    return datetime_forcing
+
+def get_analysis(basetime, concat = True):
+    prev_state_file = get_path_from_times(basetime, "-3h", "mera")
+    curr_state_file = get_path_from_times(basetime, "0h", "mera")
+    prev_state = gribs.read_multimessage_grib(prev_state_file)
+    curr_state = gribs.read_multimessage_grib(curr_state_file)
+    
+    if concat:
+        return concatenate_states([curr_state, prev_state])
+    else:
+        return curr_state, prev_state
+
+def get_forcings(basetime):
+    indir = os.path.dirname(get_path_from_times(basetime, "0h", "mera"))
+    forcings_file = os.path.join(indir, "forcings" + basetime.strftime("%Y%m%d%H") + ".nc")
+    forcing_data = xr.open_dataset(forcings_file)
+    
+    flux = forcing_data.toa_incoming_shortwave_flux.values
+    nt, nx, ny = flux.shape
+    flux = flux.reshape(nt, nx*ny, 1)
+    
+    datetime_forcing = get_datetime_forcing(
+        [utils.datetime_from_npdatetime(_) for _ in forcing_data.t.values],
+        n_grid = nx*ny
+    )
+    forcing_features = np.concatenate([flux, datetime_forcing], axis = -1) # (nt, n_grid, 5)
+    forcing_windowed = np.concatenate(
+        [
+            forcing_features[:-2],
+            forcing_features[1:-1],
+            forcing_features[2:],
+        ],
+        axis = -1
+    ) # (nt - 2, n_grid, 15)
+    
+    lsm = forcing_data.land_sea_mask.values
+    lsm = np.broadcast_to(lsm.ravel(), (nt-2, nx*ny)).reshape((nt-2, nx*ny, 1)) # (nt - 2, n_grid, 1)
+    
+    forcing = np.concatenate([forcing_windowed, lsm], axis = -1)
+    return forcing # (nt - 2, n_grid, 16)
+
+def get_borders(basetime, max_leadtime, step = dt.timedelta(hours=3), concat = True):
+    max_leadtime = utils.str_to_timedelta(max_leadtime)
+    states = []
+    for i_ldt in range(1, max_leadtime // step + 1):
+        leadtime = i_ldt * step
+        gribname = get_path_from_times(basetime, leadtime, "mera")
+        state = gribs.read_multimessage_grib(gribname)
+        states.append(state)
+    
+    if concat:
+        return concatenate_states(states)
+    else:
+        return states
+
+def forecast_from_analysis_and_forcings(startdate, enddate, forecaster, max_leadtime = "54h", textract = "72h"):
+    basetimes = utils.datetime_arange(startdate, enddate, textract)
+    for i_bt, basetime in enumerate(basetimes):
+        analysis = get_analysis(basetime)
+        forcings = get_forcings(basetime)
+        borders = get_borders(basetime, max_leadtime)
+        forecast = forecaster.forecast(analysis, forcings, borders)
+        write_forecast(forecast, basetime)
+        print(f"[{i_bt}/{len(basetimes)}] Basetime {basetime} written in {os.path.dirname(forcings_file)}")
+
+def write_forecast(forecast, basetime):
+    raise NotImplemented

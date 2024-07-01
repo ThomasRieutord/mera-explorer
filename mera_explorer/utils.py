@@ -124,6 +124,11 @@ def datetime_arange(start, stop, step):
     # return np.arange(start, stop, step, dtype="datetime64[m]")
     return np.arange(start, stop, step, dtype=dt.datetime)
 
+def datetime_from_npdatetime(datetime):
+    return dt.datetime.utcfromtimestamp(
+        (datetime - np.datetime64(0, 's'))/np.timedelta64(1, 's')
+    )
+
 def subsample(x, step =2):
     """Subsample geographical grid in Numpy array
     
