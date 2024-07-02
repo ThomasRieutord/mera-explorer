@@ -8,9 +8,9 @@ import argparse
 from mera_explorer import forecasts
 
 parser = argparse.ArgumentParser(
-    prog = "write_gribs_for_neurallam_init.py",
-    description = "Write GRIBs extracted from MERA for Neural-LAM initialisation.",
-    epilog = "Example: python write_gribs_for_neurallam_init.py --sdate 2017-01-01 --edate 2017-02-01 --outdir test",
+    prog="write_gribs_for_neurallam_init.py",
+    description="Write GRIBs extracted from MERA for Neural-LAM initialisation.",
+    epilog="Example: python write_gribs_for_neurallam_init.py --sdate 2017-01-01 --edate 2017-02-01 --outdir test",
 )
 parser.add_argument(
     "--sdate",
@@ -26,15 +26,17 @@ parser.add_argument(
     "--textract", help="Frequency of files to be extracted", default="72h"
 )
 parser.add_argument(
-    "--outdir", help="Frequency of files to be extracted", default=forecasts.DEFAULT_ROOTDIR
+    "--outdir",
+    help="Frequency of files to be extracted",
+    default=forecasts.DEFAULT_ROOTDIR,
 )
 args = parser.parse_args()
 
 forecasts.DEFAULT_ROOTDIR = args.outdir
 forecasts.create_mera_analysis_and_forcings(
-    startdate = args.sdate,
-    enddate = args.edate,
-    max_leadtime = args.max_leadtime,
-    textract = args.textract,
-    step = args.step,
+    startdate=args.sdate,
+    enddate=args.edate,
+    max_leadtime=args.max_leadtime,
+    textract=args.textract,
+    step=args.step,
 )

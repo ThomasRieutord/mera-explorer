@@ -23,17 +23,22 @@ python is_my_data_there.py --fs=reaext03 --vars=neurallam.yaml
 import os
 import argparse
 from pprint import pprint
-from mera_explorer import (
-    gribs,
-    _repopath_
-)
+from mera_explorer import gribs, _repopath_
 from mera_explorer.data import my_data
 
 # Argument parsing
 # ----------------
 parser = argparse.ArgumentParser(prog="is_my_data_there")
-parser.add_argument("--fs", help="File system name (reaext0*, all, path to local directory)", default="all")
-parser.add_argument("--vars", help="YAML file describing the set of atmospheric variables to check", default="mydata.yaml")
+parser.add_argument(
+    "--fs",
+    help="File system name (reaext0*, all, path to local directory)",
+    default="all",
+)
+parser.add_argument(
+    "--vars",
+    help="YAML file describing the set of atmospheric variables to check",
+    default="mydata.yaml",
+)
 args = parser.parse_args()
 
 ### Set of variables
@@ -59,8 +64,10 @@ print("\nVAR.CODE \t VAR.NAME                                \t #FILES")
 print("--------- \t ---------                                \t ---------")
 for varcode, varname in zip(iop_itl_lev_tri, atm_variables):
     n_files_here = len([_ for _ in merafilenames if varcode in _])
-    print(f"{varcode} \t {varname.ljust(40)} \t {n_files_here} files for this variable in this filesystem")
-    
+    print(
+        f"{varcode} \t {varname.ljust(40)} \t {n_files_here} files for this variable in this filesystem"
+    )
+
     if n_files_here == 0:
         missingvarnames.append(varname)
 
@@ -69,4 +76,3 @@ pprint(missingvarnames)
 
 gribdates = [gribs.get_date_from_gribname(gn) for gn in merafilenames]
 gribs.count_dates_per_month(gribdates)
-
