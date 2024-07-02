@@ -48,8 +48,8 @@ def str_to_datetime(strdate):
     
     Covers the following formats:
         %Y-%m-%d
-        %Y-%m-%d-%H
-        %Y-%m-%d-%H-%M
+        %Y-%m-%d %H
+        %Y-%m-%d %H:%M
     """
     if isinstance(strdate, dt.datetime):
         return strdate
@@ -57,9 +57,9 @@ def str_to_datetime(strdate):
     if len(strdate) == 10:
         fmt = "%Y-%m-%d"
     elif len(strdate) == 13:
-        fmt = "%Y-%m-%d-%H"
+        fmt = "%Y-%m-%d %H"
     elif len(strdate) == 16:
-        fmt = "%Y-%m-%d-%H-%M"
+        fmt = "%Y-%m-%d %H:%M"
     else:
         raise ValueError(f"Could not infer the format of the date {strdate}")
     
