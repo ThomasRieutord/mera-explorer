@@ -705,6 +705,55 @@ def subset_present_variables(cfnames, fsname):
         
     return herevarnames
 
+def subset_variables_in_gribnames(gribnames, cfnames):
+    """Return the subset of GRIB files in `gribnames` with a variable in `cfnames`.
+    
+    
+    Parameters
+    ----------
+    gribnames: list of str
+        List of GRIB files
+        
+    cfnames: list of str
+        Set of variables
+    
+    
+    Returns
+    -------
+    sgribnames: list of str
+        Subset of GRIB files with one of the variables
+    
+    
+    Examples
+    --------
+    >>> cfnames = ['air_temperature_at_2_metres']
+    >>> gribnames = [
+        'MERA_PRODYEAR_2017_11_1_103_0_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_09_1_103_0_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_10_1_103_0_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_11_11_105_2_0_ANALYSIS'
+    ]
+    >>> subset_variables_in_gribnames(gribnames, cfnames)
+    [
+        'MERA_PRODYEAR_2017_09_11_105_2_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_10_11_105_2_0_ANALYSIS',
+        'MERA_PRODYEAR_2017_11_11_105_2_0_ANALYSIS'
+    ]
+    """
+    iop_itl_lev_tri = [
+        "_".join([str(d) for d in get_grib1id_from_cfname(cfname)])
+        for cfname in cfnames
+    ]
+    
+    sgribnames = []
+    for gn in gribnames:
+        if any([varcode in gn for varcode in iop_itl_lev_tri]):
+            sgribnames.append(gn)
+        
+    return sgribnames
+
 def subset_present_gribnames(gribnames, fsname, exclude_bz2 = True):
     """Return the subset of GRIB files from `gribnames` that are found in the file system `fsname`
     

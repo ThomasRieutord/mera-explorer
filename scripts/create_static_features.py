@@ -60,8 +60,6 @@ from pyproj import Transformer
 from mera_explorer import _repopath_, utils
 import argparse
 
-writefiles = False
-dtype = np.float32
 
 parser = argparse.ArgumentParser(
     prog="create_static_features.py",
@@ -73,12 +71,20 @@ parser.add_argument(
     "--outdirmllam",
     help="Path to the data sample for Neural-LAM (from create_mera_sample.py)",
 )
+parser.add_argument(
+    "--writefiles",
+    help="Files will actually be written if present (they will not if the flag is not present)",
+    action="store_true",
+)
+parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", default=1)
 args = parser.parse_args()
 
+writefiles = args.writefiles
 meraclimroot = args.indirclim
 mllamdataroot = args.outdirmllam
 
-ss = lambda x: utils.subsample(x, 1)
+dtype = np.float32
+ss = lambda x: utils.subsample(x, args.subsample)
 os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok=True)
 
 sfx = xr.open_dataset(

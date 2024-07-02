@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "--vars",
     help="YAML file describing the set of atmospheric variables to check",
-    default="mydata.yaml",
+    default="neurallam.yaml",
 )
 args = parser.parse_args()
 
@@ -74,5 +74,6 @@ for varcode, varname in zip(iop_itl_lev_tri, atm_variables):
 print(f"\n{len(missingvarnames)} are missing:")
 pprint(missingvarnames)
 
-gribdates = [gribs.get_date_from_gribname(gn) for gn in merafilenames]
+subsetmerafilenames = gribs.subset_variables_in_gribnames(merafilenames, atm_variables)
+gribdates = [gribs.get_date_from_gribname(gn) for gn in subsetmerafilenames]
 gribs.count_dates_per_month(gribdates)

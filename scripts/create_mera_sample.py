@@ -109,7 +109,6 @@ from mera_explorer import (
 from mera_explorer.data import neurallam
 import argparse
 
-writefiles = True
 
 # cfnames = neurallam.neurallam_variables
 cfnames = [  # Order matters
@@ -134,7 +133,7 @@ cfnames = [  # Order matters
 ]
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
-parser = argparse.ArgumentParser(prog="create_mera_sample.py")
+parser = argparse.ArgumentParser(prog="create_mera_sample.py", epilog="Example: python create_mera_sample.py --indirclim $PERM/mera --indirgrib $SCRATCH --outdir $SCRATCH/neurallam/mera_dataset_10years/samples --sdate 2005-01-01 --edate 2015-01-01")
 parser.add_argument("--indirclim", help="Path to MERA data climatology directory")
 parser.add_argument("--indirgrib", help="Path to MERA data directory")
 parser.add_argument("--outdir", help="Output data directory")
@@ -150,28 +149,42 @@ parser.add_argument(
 )
 parser.add_argument("--tstep", help="Time step for file creation", default="3h")
 parser.add_argument("--tlag", help="Forecast time", default="65h")
+parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", default=1)
 parser.add_argument(
     "--textract", help="Frequency of files to be extracted", default="72h"
+)
+parser.add_argument(
+    "--writefiles",
+    help="Files will actually be written if present (they will not if the flag is not present)",
+    action="store_true",
 )
 args = parser.parse_args()
 
 meraclimroot = args.indirclim
 merarootdir = args.indirgrib
 npyrootdir = args.outdir
+writefiles = args.writefiles
 
-
-ss = lambda x: utils.subsample(x, 2)
+ss = lambda x: utils.subsample(x, args.subsample)
 
 
 start = args.sdate
 anchortimes = utils.datetime_arange(start, args.edate, args.textract)
+years = np.unique([d.year for d in anchortimes])
 
-length_split = int(len(anchortimes) / 3)
-anchorsplit = {
-    "train": anchortimes[:length_split],
-    "test": anchortimes[length_split : length_split * 2],
-    "val": anchortimes[length_split * 2 :],
-}
+if len(years) > 2:
+    anchorsplit = {
+        "train": np.array([d for d in anchortimes if d.year in years[:-2]]),
+        "test": np.array([d for d in anchortimes if d.year == years[-1]]),
+        "val": np.array([d for d in anchortimes if d.year == years[-2]]),
+    }
+else:
+    length_split = int(len(anchortimes) / 3)
+    anchorsplit = {
+        "train": anchortimes[:length_split],
+        "test": anchortimes[length_split : length_split * 2],
+        "val": anchortimes[length_split * 2 :],
+    }
 
 for subset, anchortimes in anchorsplit.items():
     print(f"\n=== {subset.upper()} ===")
@@ -202,7 +215,7 @@ for subset, anchortimes in anchorsplit.items():
                     gribs.get_mera_gribname_valtime(cfname, val_t, pathfromroot=True),
                 )
                 if not os.path.isfile(gribname):
-                    print(f"\t\tMISSING: {cfname} {os.path.basename(gribname)}")
+                    print(f"\t\tMISSING: {cfname} {gribname}")
                     continue
 
                 if count == 0:
@@ -269,5 +282,4 @@ for subset, anchortimes in anchorsplit.items():
             np.save(os.path.join(npysavedir, wtrfilename), x)
             print(f"\tSaved: {os.path.join(npysavedir, wtrfilename)}")
 
-    print(f"\t{len(gribnames)} GRIB used:")
-    pprint(gribnames)
+    print(f"\t{len(gribnames)} GRIB used.")
