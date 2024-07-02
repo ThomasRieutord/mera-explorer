@@ -584,6 +584,7 @@ def read_multimessage_grib(gribname):
         fd = grib.readfield(hg)
         data[cfname] = fd.getdata()
     
+    grib.close()
     return data
 
 def read_variables_from_yaml(yaml_file):

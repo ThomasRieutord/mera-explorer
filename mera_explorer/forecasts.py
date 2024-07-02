@@ -44,11 +44,10 @@ from mera_explorer import utils, gribs, MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECT
 
 DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neural-lam-outputs")
 DEFAULT_INFERENCEID = "aifc"
-GRIB_TEMPLATE = "TEMPLATE17_2014062912+000.grib"
 
 
 def get_path_from_times(
-    basetime, leadtime, inferenceid=DEFAULT_INFERENCEID, rootdir=DEFAULT_ROOTDIR
+    basetime, leadtime, inferenceid=DEFAULT_INFERENCEID
 ) -> str:
     """Return the expected path for a given base time and lead time
     
@@ -77,7 +76,7 @@ def get_path_from_times(
     leadtime = utils.str_to_timedelta(leadtime)
     strldt = str(int(leadtime.total_seconds() // 3600)).zfill(3)
     return os.path.join(
-        rootdir,
+        DEFAULT_ROOTDIR,
         inferenceid,
         *[
             str(_).zfill(2) for _ in [
@@ -88,17 +87,17 @@ def get_path_from_times(
             ]
         ],
         "mbr000",
-        inferenceid + basetime.strftime("%Y%d%m%H") + f"+{strldt}.grib",
+        inferenceid + basetime.strftime("%Y%m%d%H") + f"+{strldt}.grib",
     )
 
 def get_all_paths_from_times(
-    basetimes, leadtimes, inferenceid=DEFAULT_INFERENCEID, rootdir=DEFAULT_ROOTDIR
+    basetimes, leadtimes, inferenceid=DEFAULT_INFERENCEID
 ) -> list:
     paths = []
     for basetime in basetimes:
         for leadtime in leadtimes:
             paths.append(
-                get_path_from_times(basetime, leadtime, inferenceid, rootdir)
+                get_path_from_times(basetime, leadtime, inferenceid)
             )
     
     return paths
@@ -125,9 +124,10 @@ def get_times_from_gribname(gribname) -> tuple:
     return valtime, basetime, leadtime
 
 
-def write_in_grib(data, template, outgribname):
+def write_in_grib(data, template_file, outgribname):
+    template = cml.load_source("file", template_file)
     cfnames = data.keys()
-    _, _, leadtime = get_time_from_gribname(outgribname)
+    _, _, leadtime = get_times_from_gribname(outgribname)
     ldt = leadtime.total_seconds() // 3600
     
     for i, (onevarfield, cfname) in enumerate(zip(template, cfnames)):
@@ -139,7 +139,7 @@ def write_in_grib(data, template, outgribname):
     rm_cmd = f"rm {griblist}"
     os.system(cat_cmd)
     os.system(rm_cmd)
-    print(f"Written: {outgribname}")
+    # print(f"Written: {outgribname}")
     return outgribname
 
 def concatenate_states(states):
@@ -155,9 +155,24 @@ def concatenate_states(states):
     
     return concat_states # (nt, nx*ny, nv)
 
+def separate_states(state, cfnames, gridshape):
+    """Reverse operation to `concatenate_states`"""
+    nt, n_grid, nv = state.shape
+    assert nv == len(cfnames), "The list of variables does not match the number of dimensions"
+    assert n_grid == gridshape[0]*gridshape[1], "Unable to reshape {n_grid} elements in {gridshape}"
+    
+    return [
+        {
+            cfnames[iv]:state[it,:,iv].reshape(gridshape)
+            for iv in range(nv)
+        }
+        for it in range(nt)
+    ]
+    
 def create_analysis(basetime, cfnames, max_leadtime, inferenceid, step = dt.timedelta(hours=3)):
     basetime = utils.str_to_datetime(basetime)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
+    step = utils.str_to_timedelta(step)
     
     valtimes = []
     outgribnames = []
@@ -201,6 +216,7 @@ def create_forcings(basetime, max_leadtime, inferenceid, step = dt.timedelta(hou
     toaswf_cfname = "toa_incoming_shortwave_flux"
     basetime = utils.str_to_datetime(basetime)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
+    step = utils.str_to_timedelta(step)
     
     valtimes = [basetime + i_ldt * step for i_ldt in range(-1, max_leadtime // step + 1)]
     
@@ -260,12 +276,16 @@ def create_forcings(basetime, max_leadtime, inferenceid, step = dt.timedelta(hou
     
     return forcings_file
 
-def create_mera_analysis_and_forcings(startdate, enddate, max_leadtime = "54h", textract = "72h"):
+def create_mera_analysis_and_forcings(startdate, enddate, max_leadtime = "54h", textract = "72h", step = "3h"):
     basetimes = utils.datetime_arange(startdate, enddate, textract)
+    max_leadtime = utils.str_to_timedelta(max_leadtime)
+    step = utils.str_to_timedelta(step)
+    print(f"Writing {len(basetimes) * (max_leadtime//step + 3)} files from MERA in {DEFAULT_ROOTDIR}")
+    
     cfnames = gribs.read_variables_from_yaml(os.path.join(PACKAGE_DIRECTORY, "mera_explorer", "data", "neurallam.yaml"))
     for i_bt, basetime in enumerate(basetimes):
-        create_analysis(basetime, cfnames, max_leadtime = "54h", inferenceid = "mera")
-        forcings_file = create_forcings(basetime, max_leadtime = "54h", inferenceid = "mera")
+        create_analysis(basetime, cfnames, max_leadtime = max_leadtime, inferenceid = "mera", step = step)
+        forcings_file = create_forcings(basetime, max_leadtime = max_leadtime, inferenceid = "mera", step = step)
         print(f"[{i_bt}/{len(basetimes)}] Basetime {basetime} written in {os.path.dirname(forcings_file)}")
 
 def get_datetime_forcing(datetimes, n_grid = None):
@@ -330,6 +350,7 @@ def get_forcings(basetime):
     return forcing # (nt - 2, n_grid, 16)
 
 def get_borders(basetime, max_leadtime, step = dt.timedelta(hours=3), concat = True):
+    step = utils.str_to_timedelta(step)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
     states = []
     for i_ldt in range(1, max_leadtime // step + 1):
@@ -343,15 +364,37 @@ def get_borders(basetime, max_leadtime, step = dt.timedelta(hours=3), concat = T
     else:
         return states
 
-def forecast_from_analysis_and_forcings(startdate, enddate, forecaster, max_leadtime = "54h", textract = "72h"):
+def forecast_from_analysis_and_forcings(startdate, enddate, forecaster, max_leadtime = "54h", textract = "72h", step = "3h"):
+    step = utils.str_to_timedelta(step)
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     for i_bt, basetime in enumerate(basetimes):
         analysis = get_analysis(basetime)
         forcings = get_forcings(basetime)
         borders = get_borders(basetime, max_leadtime)
         forecast = forecaster.forecast(analysis, forcings, borders)
-        write_forecast(forecast, basetime)
-        print(f"[{i_bt}/{len(basetimes)}] Basetime {basetime} written in {os.path.dirname(forcings_file)}")
+        forecast_files = write_forecast(forecast, basetime, inferenceid=forecaster.shortname, step=step)
+        print(f"[{i_bt}/{len(basetimes)}] Forecast from {forecaster.shortname} at basetime {basetime} written in {os.path.dirname(forecast_files[0])}")
 
-def write_forecast(forecast, basetime):
-    raise NotImplemented
+def write_forecast(forecast, basetime, inferenceid, variables_to_write = "all", step = "3h"):
+    step = utils.str_to_timedelta(step)
+    grib_template = get_path_from_times(basetime, "0h", "mera")
+    data_template = gribs.read_multimessage_grib(grib_template)
+    cfnames = list(data_template.keys())
+    gridshape = data_template[cfnames[0]].shape
+    states = separate_states(forecast, cfnames, gridshape)
+    if isinstance(variables_to_write, list):
+        assert len(set(variables_to_write) & set(cfnames)) > 0, "The varibles to write are not all present in the forecast variables"
+        states = [
+            {k:state[k] for k in variables_to_write}
+            for state in states
+        ]
+    
+    forecast_files = []
+    for i_ldt in range(len(states)):
+        leadtime = step * (i_ldt +1)
+        outgribname = get_path_from_times(basetime, leadtime, inferenceid)
+        os.makedirs(os.path.dirname(outgribname), exist_ok=True)
+        write_in_grib(states[i_ldt], grib_template, outgribname)
+        forecast_files.append(outgribname)
+        
+    return forecast_files
