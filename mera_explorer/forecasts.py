@@ -365,8 +365,11 @@ def get_borders(basetime, max_leadtime, step = dt.timedelta(hours=3), concat = T
         return states
 
 def forecast_from_analysis_and_forcings(startdate, enddate, forecaster, max_leadtime = "54h", textract = "72h", step = "3h"):
-    step = utils.str_to_timedelta(step)
     basetimes = utils.datetime_arange(startdate, enddate, textract)
+    step = utils.str_to_timedelta(step)
+    max_leadtime = utils.str_to_timedelta(max_leadtime)
+    print(f"Writing {len(basetimes) * (max_leadtime//step + 1)} forecast files with {forecaster.shortname} in {DEFAULT_ROOTDIR}")
+    
     for i_bt, basetime in enumerate(basetimes):
         analysis = get_analysis(basetime)
         forcings = get_forcings(basetime)
