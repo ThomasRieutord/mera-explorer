@@ -202,7 +202,7 @@ def write_in_grib(data, template_file, outgribname):
     template = cml.load_source("file", template_file)
     cfnames = data.keys()
     _, _, leadtime = get_times_from_gribname(outgribname)
-    ldt = leadtime.total_seconds() // 3600
+    ldt = int(leadtime.total_seconds() / 3600)
 
     for i, (onevarfield, cfname) in enumerate(zip(template, cfnames)):
         with cml.new_grib_output(
@@ -333,15 +333,22 @@ def create_analysis(
     max_leadtime = utils.str_to_timedelta(max_leadtime)
     step = utils.str_to_timedelta(step)
 
-    valtimes = []
+    leadtimes = []
     outgribnames = []
     for i_ldt in range(-1, max_leadtime // step + 1):
-        leadtime = i_ldt * step
-        valtimes.append(basetime + leadtime)
-        outgribnames.append(get_path_from_times(basetime, leadtime, inferenceid))
+        leadtimes.append(i_ldt * step)
+        outgribnames.append(get_path_from_times(basetime, i_ldt * step, inferenceid))
 
-    for outgribname, val_t in zip(outgribnames, valtimes):
+    for outgribname, leadtime in zip(outgribnames, leadtimes):
         os.makedirs(os.path.dirname(outgribname), exist_ok=True)
+        val_t = basetime + leadtime
+        ldt = int(leadtime.total_seconds() / 3600)
+        if ldt < 0:
+            t_idx = -1
+            ldt = 0
+        else:
+            t_idx = 0
+        
         for cfname in cfnames:
             gribname = os.path.join(
                 MERAROOTDIR,
@@ -355,12 +362,9 @@ def create_analysis(
             x = gribs.get_data(gribname, val_t)
 
             src = cml.load_source("file", gribname)
-            t_idx = (val_t - gribs.get_date_from_gribname(gribname)) // dt.timedelta(
-                hours=3
-            )
             template = src[t_idx]
             with cml.new_grib_output(
-                outgribname.replace(".grib", f".{cfname}.grib"), template=template
+                outgribname.replace(".grib", f".{cfname}.grib"), template=template, step = ldt
             ) as output:
                 output.write(x)
 
