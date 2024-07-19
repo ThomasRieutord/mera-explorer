@@ -102,13 +102,13 @@ import matplotlib.pyplot as plt
 import easydict
 from pprint import pprint
 from mera_explorer import (
-    _repopath_,
+    PACKAGE_DIRECTORY,
     gribs,
     utils,
 )
 from mera_explorer.data import neurallam
 import argparse
-
+import warnings
 
 # cfnames = neurallam.neurallam_variables
 cfnames = [  # Order matters
@@ -149,7 +149,7 @@ parser.add_argument(
 )
 parser.add_argument("--tstep", help="Time step for file creation", default="3h")
 parser.add_argument("--tlag", help="Forecast time", default="65h")
-parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", default=1)
+parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", type=int, default=1)
 parser.add_argument(
     "--textract", help="Frequency of files to be extracted", default="72h"
 )
@@ -185,6 +185,18 @@ else:
         "test": anchortimes[length_split : length_split * 2],
         "val": anchortimes[length_split * 2 :],
     }
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    sfx = xr.open_dataset(
+        os.path.join(meraclimroot, "m05.grib"),
+        engine="cfgrib",
+        filter_by_keys={"typeOfLevel": "heightAboveGround"},
+        backend_kwargs={
+            "indexpath": os.path.join(gribs.INDEX_PATH, "m05.grib.idx")
+        },
+    )
+lsm = ss(sfx.lsm.to_numpy())
 
 for subset, anchortimes in anchorsplit.items():
     print(f"\n=== {subset.upper()} ===")
@@ -267,19 +279,10 @@ for subset, anchortimes in anchorsplit.items():
 
         # WRT files
         # ---------
-        sfx = xr.open_dataset(
-            os.path.join(meraclimroot, "m05.grib"),
-            engine="cfgrib",
-            filter_by_keys={"typeOfLevel": "heightAboveGround"},
-            backend_kwargs={
-                "indexpath": os.path.join(gribs.index_path, "m05.grib.idx")
-            },
-        )
-        x = ss(sfx.lsm.to_numpy())
-        print("\t\tland_sea_mask", x.shape, x.min(), x.mean(), x.max())
+        print("\t\tland_sea_mask", lsm.shape, lsm.min(), lsm.mean(), lsm.max())
 
         if writefiles:
-            np.save(os.path.join(npysavedir, wtrfilename), x)
+            np.save(os.path.join(npysavedir, wtrfilename), lsm)
             print(f"\tSaved: {os.path.join(npysavedir, wtrfilename)}")
 
     print(f"\t{len(gribnames)} GRIB used.")

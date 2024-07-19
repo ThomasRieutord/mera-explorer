@@ -33,7 +33,7 @@ import time
 import argparse
 import numpy as np
 import datetime as dt
-from mera_explorer import _repopath_, gribs, utils, transfer
+from mera_explorer import PACKAGE_DIRECTORY, gribs, utils, transfer
 from mera_explorer.data import neurallam
 
 # Argument parsing
@@ -74,12 +74,12 @@ streams = args.streams.split(",")
 if os.path.isdir(args.fs):
     raise NotImplementedError("Passing dir path will be ready soon, but not yet done.")
 else:
-    fstxt = os.path.join(_repopath_, "filesystems", f"merafiles_{args.fs}.txt")
+    fstxt = os.path.join(PACKAGE_DIRECTORY, "filesystems", f"merafiles_{args.fs}.txt")
 
 assert os.path.isfile(fstxt), f"Incorrect path to the file system TXT export: {fstxt}"
 
 ### Set of variables
-yaml_file = os.path.join(_repopath_, "mera_explorer", "data", args.vars)
+yaml_file = os.path.join(PACKAGE_DIRECTORY, "mera_explorer", "data", args.vars)
 assert os.path.isfile(yaml_file), f"File not found: {yaml_file}"
 
 fsname = args.fs

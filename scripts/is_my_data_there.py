@@ -23,7 +23,7 @@ python is_my_data_there.py --fs=reaext03 --vars=neurallam.yaml
 import os
 import argparse
 from pprint import pprint
-from mera_explorer import gribs, _repopath_
+from mera_explorer import gribs, PACKAGE_DIRECTORY
 from mera_explorer.data import my_data
 
 # Argument parsing
@@ -42,7 +42,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 ### Set of variables
-yaml_file = os.path.join(_repopath_, "mera_explorer", "data", args.vars)
+yaml_file = os.path.join(PACKAGE_DIRECTORY, "mera_explorer", "data", args.vars)
 assert os.path.isfile(yaml_file), f"File not found: {yaml_file}"
 
 

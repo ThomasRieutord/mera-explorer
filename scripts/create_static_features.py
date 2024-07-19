@@ -57,8 +57,9 @@ import matplotlib.pyplot as plt
 import easydict
 from pprint import pprint
 from pyproj import Transformer
-from mera_explorer import _repopath_, utils
+from mera_explorer import PACKAGE_DIRECTORY, utils
 import argparse
+import warnings
 
 
 parser = argparse.ArgumentParser(
@@ -76,7 +77,7 @@ parser.add_argument(
     help="Files will actually be written if present (they will not if the flag is not present)",
     action="store_true",
 )
-parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", default=1)
+parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2=every other point...)", type=int, default=1)
 args = parser.parse_args()
 
 writefiles = args.writefiles
@@ -87,18 +88,20 @@ dtype = np.float32
 ss = lambda x: utils.subsample(x, args.subsample)
 os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok=True)
 
-sfx = xr.open_dataset(
-    os.path.join(meraclimroot, "m05.grib"),
-    engine="cfgrib",
-    filter_by_keys={"typeOfLevel": "heightAboveGround"},
-)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    sfx = xr.open_dataset(
+        os.path.join(meraclimroot, "m05.grib"),
+        engine="cfgrib",
+        filter_by_keys={"typeOfLevel": "heightAboveGround"},
+    )
 
 
 # Create the orography file: surface_geopotential
 # --------------------------
 orofile = os.path.join(mllamdataroot, "static", "surface_geopotential.npy")
 print(f"Orography file to be written in {orofile}")
-
 
 z = ss(sfx.z.to_numpy().astype(dtype))
 print(f"    z.shape={z.shape} {z.dtype}")
@@ -114,7 +117,7 @@ xyfile = os.path.join(mllamdataroot, "static", "nwp_xy.npy")
 print(f"Geometry file to be written in {xyfile}")
 
 meregeomfile = os.path.join(
-    _repopath_, "mera_explorer", "data", "mera-grid-geometry.yaml"
+    PACKAGE_DIRECTORY, "mera_explorer", "data", "mera-grid-geometry.yaml"
 )
 assert os.path.isfile(
     meregeomfile
