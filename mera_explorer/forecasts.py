@@ -51,7 +51,9 @@ from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, gribs, ut
 
 DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neural-lam-outputs")
 DEFAULT_INFERENCEID = "aifc"
+SUBSAMPLING_STEP = 1
 
+ss = lambda x: utils.subsample(x, SUBSAMPLING_STEP)
 
 def get_path_from_times(basetime, leadtime, inferenceid=DEFAULT_INFERENCEID) -> str:
     """Return the expected path for a given base time and lead time
@@ -594,6 +596,10 @@ def get_analysis(basetime, concat=True) -> np.ndarray:
     curr_state_file = get_path_from_times(basetime, "0h", "mera")
     prev_state = gribs.read_multimessage_grib(prev_state_file)
     curr_state = gribs.read_multimessage_grib(curr_state_file)
+    
+    if SUBSAMPLING_STEP > 1:
+        prev_state = {k:ss(v) for k,v in prev_state.items()}
+        curr_state = {k:ss(v) for k,v in curr_state.items()}
 
     if concat:
         return concatenate_states([curr_state, prev_state])
@@ -627,6 +633,10 @@ def get_forcings(basetime) -> np.ndarray:
     forcing_data = xr.open_dataset(forcings_file)
 
     flux = forcing_data.toa_incoming_shortwave_flux.values
+    
+    if SUBSAMPLING_STEP > 1:
+        flux = ss(flux)
+    
     nt, nx, ny = flux.shape
     flux = flux.reshape(nt, nx * ny, 1)
 
@@ -647,6 +657,10 @@ def get_forcings(basetime) -> np.ndarray:
     )  # (nt - 2, n_grid, 15)
 
     lsm = forcing_data.land_sea_mask.values
+    
+    if SUBSAMPLING_STEP > 1:
+        lsm = ss(lsm)
+    
     lsm = np.broadcast_to(lsm.ravel(), (nt - 2, nx * ny)).reshape(
         (nt - 2, nx * ny, 1)
     )  # (nt - 2, n_grid, 1)
@@ -690,6 +704,10 @@ def get_borders(basetime, max_leadtime, step=dt.timedelta(hours=3), concat=True)
         leadtime = i_ldt * step
         gribname = get_path_from_times(basetime, leadtime, "mera")
         state = gribs.read_multimessage_grib(gribname)
+        
+        if SUBSAMPLING_STEP > 1:
+            state = {k:ss(v) for k,v in state.items()}
+        
         states.append(state)
 
     if concat:
