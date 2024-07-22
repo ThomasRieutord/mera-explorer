@@ -579,7 +579,7 @@ def get_datetime_forcing(datetimes, n_grid=None) -> np.ndarray:
     return datetime_forcing
 
 
-def get_analysis(basetime, concat=True) -> np.ndarray:
+def get_analysis(basetime, concat=True, data_scaler = None) -> np.ndarray:
     """Load the analysis data (previous state and current state) into an array.
 
 
@@ -600,14 +600,22 @@ def get_analysis(basetime, concat=True) -> np.ndarray:
     if SUBSAMPLING_STEP > 1:
         prev_state = {k:ss(v) for k,v in prev_state.items()}
         curr_state = {k:ss(v) for k,v in curr_state.items()}
-
+    
+    if data_scaler is not None:
+        cfnames = list(curr_state.keys())
+        gridshape = curr_state[cfnames[0]].shape
+        
+        states = concatenate_states([curr_state, prev_state])
+        states = data_scaler.transform(states)
+        curr_state, prev_state = separate_states(states, cfnames, gridshape)
+        
     if concat:
         return concatenate_states([curr_state, prev_state])
     else:
         return curr_state, prev_state
 
 
-def get_forcings(basetime) -> np.ndarray:
+def get_forcings(basetime, flux_scaler = None) -> np.ndarray:
     """Calculate the forcings for a forecast starting at `basetime`.
     
     For a given datetime, the forcing is a 4-dimensional vector accounting for variations
@@ -636,6 +644,9 @@ def get_forcings(basetime) -> np.ndarray:
     
     if SUBSAMPLING_STEP > 1:
         flux = ss(flux)
+    
+    if flux_scaler is not None:
+        flux = flux_scaler.transform(flux)
     
     nt, nx, ny = flux.shape
     flux = flux.reshape(nt, nx * ny, 1)
@@ -669,7 +680,7 @@ def get_forcings(basetime) -> np.ndarray:
     return forcing  # (nt - 2, n_grid, 16)
 
 
-def get_borders(basetime, max_leadtime, step=dt.timedelta(hours=3), concat=True) -> np.ndarray:
+def get_borders(basetime, max_leadtime, step=dt.timedelta(hours=3), concat=True, data_scaler = None) -> np.ndarray:
     """Calculate the forcings for a forecast starting at `basetime`.
     
     For a given datetime, the forcing is a 4-dimensional vector accounting for variations
@@ -710,6 +721,14 @@ def get_borders(basetime, max_leadtime, step=dt.timedelta(hours=3), concat=True)
         
         states.append(state)
 
+    if data_scaler is not None:
+        cfnames = list(states[0].keys())
+        gridshape = states[0][cfnames[0]].shape
+        
+        states = concatenate_states(states)
+        states = data_scaler.transform(states)
+        states = separate_states(states, cfnames, gridshape)
+    
     if concat:
         return concatenate_states(states)
     else:
@@ -774,10 +793,11 @@ def forecast_from_analysis_and_forcings(
     )
 
     for i_bt, basetime in enumerate(basetimes):
-        analysis = get_analysis(basetime)
-        forcings = get_forcings(basetime)
-        borders = get_borders(basetime, max_leadtime)
+        analysis = get_analysis(basetime, data_scaler = forecaster.data_scaler)
+        forcings = get_forcings(basetime, flux_scaler = forecaster.flux_scaler)
+        borders = get_borders(basetime, max_leadtime, data_scaler = forecaster.data_scaler)
         forecast = forecaster.forecast(analysis, forcings, borders)
+        forecast = forecaster.data_scaler.inverse_transform(forecast)
         forecast_files = write_forecast(
             forecast, basetime, inferenceid=forecaster.shortname, step=step
         )
