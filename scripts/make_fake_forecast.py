@@ -5,9 +5,11 @@
 Make fake forecasts in GRIBs files, starting from pre-computed MERA analysis.
 """
 # python -i make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam
+import os
 import argparse
 from mera_explorer import forecasts
 from neural_lam import forecasters
+from neural_lam import package_rootdir as NLAMPKRDIR
 
 parser = argparse.ArgumentParser(
     prog="make_fake_forecast.py",
@@ -41,7 +43,7 @@ elif args.forecaster == "gradientincrement":
 elif args.forecaster == "neurallam":
     fakefc = forecasters.NeuralLAMforecaster(
         # "/home/dutr/neural-lam/saved_models/graph_lam-4x64-06_27_12-9867/min_val_loss.ckpt"
-        "/home/dutr/neural-lam/saved_models/graph_lam-4x64-07_19_15-2217/min_val_loss.ckpt"
+        os.path.join(NLAMPKRDIR, "saved_models", "graph_lam-4x64-07_19_15-2217", "min_val_loss.ckpt")
     )
     # forecasts.SUBSAMPLING_STEP = 2
 else:
