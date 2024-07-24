@@ -31,6 +31,7 @@ import yaml
 import shutil
 import numpy as np
 import datetime as dt
+import easydict
 import eccodes as ecc
 import epygram
 import xarray as xr
@@ -516,6 +517,55 @@ def get_filesystem_host_and_root(fsname):
                 break
     
     return hostname, meraroot
+
+def _get_lonlat_grid_epygram(gribname):
+    grib = epygram.formats.resource(gribname, "r")
+    hg = grib.listfields()[0]
+    fd = grib.readfield(hg)
+    return fd.geometry.get_lonlat_grid()
+
+def _get_lonlat_grid_xarray(gribname):
+    grib = xr.open_dataset(
+        gribname,
+        engine="cfgrib",
+        backend_kwargs={
+            "indexpath": os.path.join(INDEX_PATH, os.path.basename(gribname) + '.idx')
+        }
+    )
+    return grib.longitude.values, grib.latitude.values
+
+def get_lonlat_grid(gribname, reader = "any"):
+    if reader ==  "epygram":
+        lon, lat = _get_lonlat_grid_epygram(gribname)
+    elif reader ==  "xarray":
+        lon, lat = _get_lonlat_grid_xarray(gribname)
+    elif reader ==  "any":
+        try:
+            lon, lat = _get_lonlat_grid_epygram(gribname)
+        except:
+            lon, lat = _get_lonlat_grid_xarray(gribname)
+    else:
+        raise ValueError(f"Incorrect reader {reader}. Please choose among ['epygram', 'xarray', 'any']")
+    
+    return lon, lat
+
+def get_mera_crs(fmt = "proj4"):
+    meregeomfile = os.path.join(
+        PACKAGE_DIRECTORY, "mera_explorer", "data", "mera-grid-geometry.yaml"
+    )
+    with open(meregeomfile, "r") as f:
+        geom = yaml.safe_load(f)
+    
+    g = easydict.EasyDict(geom["geometry"])
+    
+    if fmt == "proj4":
+        return f"+proj=lcc +lat_0={g.projlat} +lon_0={g.projlon} +lat_1={g.projlat} +lat_2={g.projlat2} +x_0={g.polon} +y_0={g.polat} +datum=WGS84 +units=m +no_defs"
+    elif fmt == "cartopy":
+        return {
+            "central_longitude": g.projlon,
+            "central_latitude": g.projlat,
+            "standard_parallels": (g.projlat, g.projlat2)
+        }
 
 def list_mera_gribnames(fsname, keep = None):
     """Return the list of MERA GRIB files found under the given directory
