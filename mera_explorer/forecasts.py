@@ -42,14 +42,15 @@ Global docstring reviews:
 import datetime as dt
 import os
 import warnings
+from collections import OrderedDict
 
 import climetlab as cml
 import numpy as np
 import xarray as xr
 
-from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, gribs, utils
+from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, NEURALLAM_VARIABLES, gribs, utils
 
-DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neural-lam-outputs")
+DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neurallam-outputs")
 DEFAULT_INFERENCEID = "aifc"
 SUBSAMPLING_STEP = 1
 
@@ -297,7 +298,7 @@ def separate_states(state, cfnames, gridshape) -> list:
     ), "Unable to reshape {n_grid} elements in {gridshape}"
 
     return [
-        {cfnames[iv]: state[it, :, iv].reshape(gridshape) for iv in range(nv)}
+        OrderedDict([(cfnames[iv], state[it, :, iv].reshape(gridshape)) for iv in range(nv)])
         for it in range(nt)
     ]
 
@@ -514,12 +515,9 @@ def create_mera_analysis_and_forcings(
         f"Writing {len(basetimes) * (max_leadtime//step + 3)} files from MERA in {DEFAULT_ROOTDIR}"
     )
 
-    cfnames = gribs.read_variables_from_yaml(
-        os.path.join(PACKAGE_DIRECTORY, "mera_explorer", "data", "neurallam.yaml")
-    )
     for i_bt, basetime in enumerate(basetimes):
         create_analysis(
-            basetime, cfnames, max_leadtime=max_leadtime, inferenceid="mera", step=step
+            basetime, NEURALLAM_VARIABLES, max_leadtime=max_leadtime, inferenceid="mera", step=step
         )
         forcings_file = create_forcings(
             basetime, max_leadtime=max_leadtime, inferenceid="mera", step=step
@@ -597,17 +595,20 @@ def get_analysis(basetime, concat=True, data_scaler = None) -> np.ndarray:
     prev_state = gribs.read_multimessage_grib(prev_state_file)
     curr_state = gribs.read_multimessage_grib(curr_state_file)
     
+    # Re-order variables (fix for analysis writing with wrong order)
+    prev_state = OrderedDict([(k,prev_state[k]) for k in NEURALLAM_VARIABLES])
+    curr_state = OrderedDict([(k,curr_state[k]) for k in NEURALLAM_VARIABLES])
+    
     if SUBSAMPLING_STEP > 1:
-        prev_state = {k:ss(v) for k,v in prev_state.items()}
-        curr_state = {k:ss(v) for k,v in curr_state.items()}
+        prev_state = OrderedDict([(k,ss(v)) for k,v in prev_state.items()])
+        curr_state = OrderedDict([(k,ss(v)) for k,v in curr_state.items()])
     
     if data_scaler is not None:
-        cfnames = list(curr_state.keys())
-        gridshape = curr_state[cfnames[0]].shape
+        gridshape = curr_state[NEURALLAM_VARIABLES[0]].shape
         
         states = concatenate_states([curr_state, prev_state])
         states = data_scaler.transform(states)
-        curr_state, prev_state = separate_states(states, cfnames, gridshape)
+        curr_state, prev_state = separate_states(states, NEURALLAM_VARIABLES, gridshape)
         
     if concat:
         return concatenate_states([curr_state, prev_state])
@@ -716,18 +717,20 @@ def get_borders(basetime, max_leadtime, step=dt.timedelta(hours=3), concat=True,
         gribname = get_path_from_times(basetime, leadtime, "mera")
         state = gribs.read_multimessage_grib(gribname)
         
+        # Re-order variables (fix for analysis writing with wrong order)
+        state = OrderedDict([(k,state[k]) for k in NEURALLAM_VARIABLES])
+        
         if SUBSAMPLING_STEP > 1:
-            state = {k:ss(v) for k,v in state.items()}
+            state = OrderedDict([(k,ss(v)) for k,v in state.items()])
         
         states.append(state)
 
     if data_scaler is not None:
-        cfnames = list(states[0].keys())
-        gridshape = states[0][cfnames[0]].shape
+        gridshape = states[0][NEURALLAM_VARIABLES[0]].shape
         
         states = concatenate_states(states)
         states = data_scaler.transform(states)
-        states = separate_states(states, cfnames, gridshape)
+        states = separate_states(states, NEURALLAM_VARIABLES, gridshape)
     
     if concat:
         return concatenate_states(states)
@@ -799,7 +802,7 @@ def forecast_from_analysis_and_forcings(
         forecast = forecaster.forecast(analysis, forcings, borders)
         forecast = forecaster.data_scaler.inverse_transform(forecast)
         forecast_files = write_forecast(
-            forecast, basetime, inferenceid=forecaster.shortname, step=step
+            forecast, basetime, inferenceid=forecaster.shortname, variables_to_write=NEURALLAM_VARIABLES, step=step
         )
         print(
             f"[{i_bt}/{len(basetimes)}] Forecast from {forecaster.shortname} at basetime {basetime} written in {os.path.dirname(forecast_files[0])}"
@@ -841,6 +844,10 @@ def write_forecast(
     step = utils.str_to_timedelta(step)
     grib_template = get_path_from_times(basetime, "0h", "mera")
     data_template = gribs.read_multimessage_grib(grib_template)
+    
+    # Re-order variables (fix for analysis writing with wrong order)
+    data_template = OrderedDict([(k,data_template[k]) for k in NEURALLAM_VARIABLES])
+    
     cfnames = list(data_template.keys())
     gridshape = data_template[cfnames[0]].shape
 
@@ -850,7 +857,10 @@ def write_forecast(
         assert (
             len(set(variables_to_write) & set(cfnames)) > 0
         ), "The varibles to write are not all present in the forecast variables"
-        states = [{k: state[k] for k in variables_to_write} for state in states]
+        states = [
+            OrderedDict([(k, state[k]) for k in variables_to_write])
+            for state in states
+        ]
 
     forecast_files = []
     for i_ldt in range(len(states)):

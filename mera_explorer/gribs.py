@@ -35,6 +35,7 @@ import easydict
 import eccodes as ecc
 import epygram
 import xarray as xr
+from collections import OrderedDict
 from mera_explorer import utils, PACKAGE_DIRECTORY
 
 # DATA
@@ -624,7 +625,7 @@ def list_mera_gribnames(fsname, keep = None):
 
 def read_multimessage_grib(gribname):
     grib = epygram.formats.resource(gribname, "r")
-    data = {}
+    data = OrderedDict()
     for hg in grib.listfields():
         cfname = get_cfname_from_grib1id(
             hg['indicatorOfParameter'],
