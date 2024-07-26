@@ -4,7 +4,7 @@
 
 Make fake forecasts in GRIBs files, starting from pre-computed MERA analysis.
 """
-# python -i make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam
+# python -i make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam:graph_lam-4x64-06_27_12-9867
 import os
 import argparse
 from mera_explorer import forecasts
@@ -14,7 +14,7 @@ from neural_lam import package_rootdir as NLAMPKRDIR
 parser = argparse.ArgumentParser(
     prog="make_fake_forecast.py",
     description="Make fake forecasts in GRIBs files starting from MERA analysis.",
-    epilog="Example: python make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --forecaster persistence",
+    epilog="Example: python -i make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam:graph_lam-4x64-07_19_15-2217",
 )
 parser.add_argument(
     "--sdate",
@@ -40,10 +40,10 @@ if args.forecaster == "persistence":
     fakefc = forecasters.Persistence()
 elif args.forecaster == "gradientincrement":
     fakefc = forecasters.GradientIncrement()
-elif args.forecaster == "neurallam":
+elif args.forecaster.startswith("neurallam"):
+    modelid = args.forecaster.split(":")[1]
     fakefc = forecasters.NeuralLAMforecaster(
-        # "/home/dutr/neural-lam/saved_models/graph_lam-4x64-06_27_12-9867/min_val_loss.ckpt"
-        os.path.join(NLAMPKRDIR, "saved_models", "graph_lam-4x64-07_19_15-2217", "min_val_loss.ckpt")
+        os.path.join(NLAMPKRDIR, "saved_models", modelid, "min_val_loss.ckpt")
     )
     # forecasts.SUBSAMPLING_STEP = 2
 else:
@@ -59,7 +59,6 @@ forecasts.forecast_from_analysis_and_forcings(
     textract=args.textract,
     step=args.step,
 )
-
 
 # # Tests
 # from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, gribs, utils
