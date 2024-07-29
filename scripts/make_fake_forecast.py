@@ -14,7 +14,7 @@ from neural_lam import package_rootdir as NLAMPKRDIR
 parser = argparse.ArgumentParser(
     prog="make_fake_forecast.py",
     description="Make fake forecasts in GRIBs files starting from MERA analysis.",
-    epilog="Example: python -i make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam:graph_lam-4x64-07_19_15-2217",
+    epilog="Example: python make_fake_forecast.py --sdate 2017-01-01 --edate 2017-02-01 --max-leadtime 65h --forecaster neurallam:graph_lam-4x64-07_19_15-2217",
 )
 parser.add_argument(
     "--sdate",
@@ -34,6 +34,9 @@ parser.add_argument("--max-leadtime", help="Maximum lead time", default="54h")
 parser.add_argument(
     "--textract", help="Frequency of files to be extracted", default="72h"
 )
+parser.add_argument(
+    "--device", help="Device on which the inference is run ('cpu' or 'cuda')", default="cpu"
+)
 args = parser.parse_args()
 
 if args.forecaster == "persistence":
@@ -43,7 +46,8 @@ elif args.forecaster == "gradientincrement":
 elif args.forecaster.startswith("neurallam"):
     modelid = args.forecaster.split(":")[1]
     fakefc = forecasters.NeuralLAMforecaster(
-        os.path.join(NLAMPKRDIR, "saved_models", modelid, "min_val_loss.ckpt")
+        os.path.join(NLAMPKRDIR, "saved_models", modelid, "min_val_loss.ckpt"),
+        device = args.device
     )
     # forecasts.SUBSAMPLING_STEP = 2
 else:
