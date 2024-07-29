@@ -40,6 +40,7 @@ Global docstring reviews:
     - 3 July 2024 (Thomas Rieutord)
 """
 import datetime as dt
+import time
 import os
 import warnings
 from collections import OrderedDict
@@ -50,7 +51,7 @@ import xarray as xr
 
 from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, NEURALLAM_VARIABLES, gribs, utils
 
-DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neurallam-outputs")
+DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neurallam-inference-outputs")
 DEFAULT_INFERENCEID = "aifc"
 SUBSAMPLING_STEP = 1
 
@@ -304,7 +305,7 @@ def separate_states(state, cfnames, gridshape) -> list:
 
 
 def create_analysis(
-    basetime, cfnames, max_leadtime, inferenceid, step=dt.timedelta(hours=3)
+    basetime, cfnames, max_leadtime, inferenceid, step=dt.timedelta(hours=3), overwrite = False
 ) -> str:
     """Create analysis files based on the given parameters.
 
@@ -339,8 +340,15 @@ def create_analysis(
     leadtimes = []
     outgribnames = []
     for i_ldt in range(-1, max_leadtime // step + 1):
-        leadtimes.append(i_ldt * step)
-        outgribnames.append(get_path_from_times(basetime, i_ldt * step, inferenceid))
+        leadtime = i_ldt * step
+        outgribname = get_path_from_times(basetime, leadtime, inferenceid)
+        
+        if os.path.isfile(outgribname) and not overwrite:
+            print(f"Forecast file {outgribname} already existing. Skipped")
+            continue
+        
+        leadtimes.append(leadtime)
+        outgribnames.append(outgribname)
 
     for outgribname, leadtime in zip(outgribnames, leadtimes):
         os.makedirs(os.path.dirname(outgribname), exist_ok=True)
@@ -382,7 +390,7 @@ def create_analysis(
     return outgribnames
 
 
-def create_forcings(basetime, max_leadtime, inferenceid, step=dt.timedelta(hours=3)) -> str:
+def create_forcings(basetime, max_leadtime, inferenceid, step=dt.timedelta(hours=3), overwrite = False) -> str:
     """Extract data used in forcings and store them in a netCDF file.
 
 
@@ -419,7 +427,12 @@ def create_forcings(basetime, max_leadtime, inferenceid, step=dt.timedelta(hours
     forcings_file = os.path.join(
         outdir, "forcings" + basetime.strftime("%Y%m%d%H") + ".nc"
     )
+    if os.path.isfile(forcings_file) and not overwrite:
+        print(f"Forcing file {forcings_file} already existing. Skipped")
+        return forcings_file
 
+    os.makedirs(outdir, exist_ok=True)
+    
     # TOA files
     count = 0
     for val_t in valtimes:
@@ -471,7 +484,7 @@ def create_forcings(basetime, max_leadtime, inferenceid, step=dt.timedelta(hours
 
 
 def create_mera_analysis_and_forcings(
-    startdate, enddate, max_leadtime="54h", textract="72h", step="3h"
+    startdate, enddate, max_leadtime="54h", textract="72h", step="3h", overwrite = False
 ) -> None:
     """Main function #1
 
@@ -508,6 +521,7 @@ def create_mera_analysis_and_forcings(
     [2/11] Basetime 2017-01-07 00:00:00 written in /ec/res4/scratch/dutr/neural-lam-outputs/mera/2017/01/07/00/mbr000
     ...
     """
+    start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
     step = utils.str_to_timedelta(step)
@@ -516,15 +530,18 @@ def create_mera_analysis_and_forcings(
     )
 
     for i_bt, basetime in enumerate(basetimes):
-        create_analysis(
-            basetime, NEURALLAM_VARIABLES, max_leadtime=max_leadtime, inferenceid="mera", step=step
-        )
         forcings_file = create_forcings(
-            basetime, max_leadtime=max_leadtime, inferenceid="mera", step=step
+            basetime, max_leadtime=max_leadtime, inferenceid="mera", step=step, overwrite=overwrite
+        )
+        create_analysis(
+            basetime, NEURALLAM_VARIABLES, max_leadtime=max_leadtime, inferenceid="mera", step=step, overwrite=overwrite
         )
         print(
             f"[{i_bt}/{len(basetimes)}] Basetime {basetime} written in {os.path.dirname(forcings_file)}"
         )
+    
+    stop = time.time()
+    print(f"Total elapsed time: {round(stop-start, 1)} s. Average of {round((stop-start)/i_bt, 4)} s per basetime")
 
 
 def get_datetime_forcing(datetimes, n_grid=None) -> np.ndarray:
@@ -788,6 +805,7 @@ def forecast_from_analysis_and_forcings(
     --------
     `create_mera_analysis_and_forcings`, `neural_lam.forecaster.Forecaster`
     """
+    start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     step = utils.str_to_timedelta(step)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
@@ -808,6 +826,8 @@ def forecast_from_analysis_and_forcings(
             f"[{i_bt}/{len(basetimes)}] Forecast from {forecaster.shortname} at basetime {basetime} written in {os.path.dirname(forecast_files[0])}"
         )
 
+    stop = time.time()
+    print(f"Total elapsed time: {round(stop-start, 1)} s. Average of {round((stop-start)/i_bt, 4)} s per basetime")
 
 def write_forecast(
     forecast, basetime, inferenceid, variables_to_write="all", step="3h"
