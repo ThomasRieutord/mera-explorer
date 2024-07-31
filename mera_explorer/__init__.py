@@ -7,8 +7,6 @@ https://github.com/ThomasRieutord/mera-explorer
 import os
 
 PACKAGE_DIRECTORY = os.path.split(__path__[0])[0]
-MERAROOTDIR = "/data/trieutord/MERA/grib-all"
-MERACLIMDIR = "/data/trieutord/MERA/meraclim"
 
 NEURALLAM_VARIABLES = [  # Order matters
     "air_pressure_at_surface_level",
@@ -30,6 +28,17 @@ NEURALLAM_VARIABLES = [  # Order matters
     "geopotential_at_1000_hPa",
 ]
 
+### Paths to MERA data on this machine
+# [... mera-explorer]$ cat local/paths.txt
+# MERAROOTDIR = "/data/trieutord/MERA/grib-all" # Parent directory of all MERA GRIB files
+# MERACLIMDIR = "/data/trieutord/MERA/meraclim" # Directory where are stored climatology data (in particular the m05.grib)
+
+with open(os.path.join(PACKAGE_DIRECTORY, "local", "paths.txt"), "r") as f:
+    for l in f.readlines():
+        if "MERAROOTDIR" in l:
+            MERAROOTDIR = l.split('"')[1]
+        if "MERACLIMDIR" in l:
+            MERACLIMDIR = l.split('"')[1]
 
 with open(os.path.join(PACKAGE_DIRECTORY, "setup.py"), "r") as f:
     for l in f.readlines():
