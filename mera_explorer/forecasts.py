@@ -352,7 +352,7 @@ def create_analysis(
 
     for outgribname, leadtime in zip(outgribnames, leadtimes):
         os.makedirs(os.path.dirname(outgribname), exist_ok=True)
-        val_t = basetime + leadtime
+        valtime = basetime + leadtime
         ldt = int(leadtime.total_seconds() / 3600)
         if ldt < 0:
             # Workaround the second previous state (ldt=-3)
@@ -361,14 +361,14 @@ def create_analysis(
         for cfname in cfnames:
             gribname = os.path.join(
                 MERAROOTDIR,
-                gribs.get_mera_gribname_valtime(cfname, val_t, pathfromroot=True),
+                gribs.get_mera_gribname_valtime(cfname, valtime, pathfromroot=True),
             )
 
             if not os.path.isfile(gribname):
                 print(f"\t\tMISSING: {cfname} {gribname}")
                 continue
 
-            x = gribs.get_data(gribname, val_t)
+            x = gribs.get_data(gribname, valtime)
 
             src = cml.load_source("file", gribname)
             for template in src:
@@ -437,15 +437,15 @@ def create_forcings(basetime, max_leadtime, inferenceid, step=dt.timedelta(hours
     
     # TOA files
     count = 0
-    for val_t in valtimes:
+    for valtime in valtimes:
         gribname = os.path.join(
             MERAROOTDIR,
-            gribs.get_mera_gribname_valtime(toaswf_cfname, val_t, pathfromroot=True),
+            gribs.get_mera_gribname_valtime(toaswf_cfname, valtime, pathfromroot=True),
         )
         if count == 0:
-            toaswf = gribs.get_data(gribname, val_t)
+            toaswf = gribs.get_data(gribname, valtime)
         else:
-            x_t = gribs.get_data(gribname, val_t)
+            x_t = gribs.get_data(gribname, valtime)
             toaswf = np.dstack((toaswf, x_t))
 
         count += 1
