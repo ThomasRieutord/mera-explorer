@@ -103,6 +103,8 @@ import easydict
 from pprint import pprint
 from mera_explorer import (
     PACKAGE_DIRECTORY,
+    MERAROOTDIR,
+    MERACLIMDIR,
     gribs,
     utils,
 )
@@ -134,18 +136,18 @@ cfnames = [  # Order matters
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
 parser = argparse.ArgumentParser(prog="create_mera_sample.py", epilog="Example: python create_mera_sample.py --indirclim $PERM/mera --indirgrib $SCRATCH --outdir $SCRATCH/neurallam/mera_dataset_10years/samples --sdate 2005-01-01 --edate 2015-01-01")
-parser.add_argument("--indirclim", help="Path to MERA data climatology directory")
-parser.add_argument("--indirgrib", help="Path to MERA data directory")
+parser.add_argument("--indirclim", help="Path to MERA data climatology directory", default=MERACLIMDIR)
+parser.add_argument("--indirgrib", help="Path to MERA data directory", default=MERAROOTDIR)
 parser.add_argument("--outdir", help="Output data directory")
 parser.add_argument(
     "--sdate",
     type=dt.datetime.fromisoformat,
-    help="Start date in ISO format - YYYY-MM-DD:HH",
+    help="Start date in ISO format - YYYY-MM-DD HH:MM",
 )
 parser.add_argument(
     "--edate",
     type=dt.datetime.fromisoformat,
-    help="End date in ISO format - YYYY-MM-DD:HH",
+    help="End date in ISO format - YYYY-MM-DD HH:MM",
 )
 parser.add_argument("--tstep", help="Time step for file creation", default="3h")
 parser.add_argument("--tlag", help="Forecast time", default="65h")
