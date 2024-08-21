@@ -301,6 +301,37 @@ def get_date_from_gribname(gribname) -> dt.datetime:
     
     return dt.datetime(int(year), int(month), 1)
 
+def get_climetlab_basetime(gribfield):
+    """Return the basetime of a Climetlab GRIB field
+    
+    Climetlab GRIB fields are accessed by iterating over GRIB readers.
+    See example for more info.
+    
+    
+    Parameter
+    ---------
+    gribfield: `climetlab.readers.grib.codes.GribField`
+        The Climetlab GRIB field to read
+    
+    
+    Returns
+    -------
+    basetime: `datetime.datetime`
+        The base time of the GRIB field.
+    
+    
+    Example
+    -------
+    >>> import climetlab as cml
+    >>> from mera_explorer import gribs
+    >>> src = cml.load_source("file", "mera2017011600+036.grib")
+    >>> gribs.get_climetlab_basetime(src[0])
+    datetime.datetime(2017, 1, 16, 0, 0)
+    """
+    date = gribfield.handle.get_string("date")
+    time = gribfield.handle.get_string("time")
+    return dt.datetime.strptime(date + time, "%Y%m%d%H%M")
+
 def get_data(gribname, valtimes, varidx = -1):
     """Extract an Numpy array of data from the GRIB name.
     

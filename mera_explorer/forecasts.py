@@ -355,10 +355,8 @@ def create_analysis(
         val_t = basetime + leadtime
         ldt = int(leadtime.total_seconds() / 3600)
         if ldt < 0:
-            t_idx = -1
+            # Workaround the second previous state (ldt=-3)
             ldt = 0
-        else:
-            t_idx = 0
         
         for cfname in cfnames:
             gribname = os.path.join(
@@ -373,7 +371,11 @@ def create_analysis(
             x = gribs.get_data(gribname, val_t)
 
             src = cml.load_source("file", gribname)
-            template = src[t_idx]
+            for template in src:
+                # Look for the GRIB field with the correct base time
+                if gribs.get_climetlab_basetime(template) == basetime:
+                    break
+
             with cml.new_grib_output(
                 outgribname.replace(".grib", f".{cfname}.grib"), template=template, step = ldt
             ) as output:
