@@ -522,6 +522,11 @@ def create_mera_analysis_and_forcings(
     [1/11] Basetime 2017-01-04 00:00:00 written in /ec/res4/scratch/dutr/neural-lam-outputs/mera/2017/01/04/00/mbr000
     [2/11] Basetime 2017-01-07 00:00:00 written in /ec/res4/scratch/dutr/neural-lam-outputs/mera/2017/01/07/00/mbr000
     ...
+    
+    
+    See also
+    --------
+    `forecast_from_analysis_and_forcings`, mera-explorer/scripts/write_gribs_for neurallam_init.py
     """
     start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)
@@ -805,7 +810,7 @@ def forecast_from_analysis_and_forcings(
 
     See also
     --------
-    `create_mera_analysis_and_forcings`, `neural_lam.forecaster.Forecaster`
+    `create_mera_analysis_and_forcings`, `neural_lam.forecaster.Forecaster`, mera-explorer/scripts/write_gribs_for neurallam_init.py
     """
     start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)

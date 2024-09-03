@@ -9,7 +9,7 @@ import os
 import argparse
 from mera_explorer import forecasts
 from neural_lam import forecasters
-from neural_lam import package_rootdir as NLAMPKRDIR
+from neural_lam import PACKAGE_ROOTDIR as NEURALLAM_PACKAGE_ROOTDIR
 
 parser = argparse.ArgumentParser(
     prog="make_fake_forecast.py",
@@ -46,10 +46,9 @@ elif args.forecaster == "gradientincrement":
 elif args.forecaster.startswith("neurallam"):
     modelid = args.forecaster.split(":")[1]
     fakefc = forecasters.NeuralLAMforecaster(
-        os.path.join(NLAMPKRDIR, "saved_models", modelid, "min_val_loss.ckpt"),
+        os.path.join(NEURALLAM_PACKAGE_ROOTDIR, "saved_models", modelid, "min_val_loss.ckpt"),
         device = args.device
     )
-    # forecasts.SUBSAMPLING_STEP = 2
 else:
     raise ValueError(
         f"Unknown fake forecast option {args.forecaster}. See neural_lam.forecasters to have vaild options"
@@ -63,16 +62,3 @@ forecasts.forecast_from_analysis_and_forcings(
     textract=args.textract,
     step=args.step,
 )
-
-# # Tests
-# from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, gribs, utils
-# import torch
-
-# basetime = utils.str_to_datetime("2017-01-01")
-# analysis = forecasts.get_analysis(basetime)
-# forcings = forecasts.get_forcings(basetime)
-# borders = forecasts.get_borders(basetime, "65h")
-
-# analysis, forcings, borders = [torch.tensor(_) for _ in (analysis, forcings, borders)]
-# analysis, forcings, borders = [_.unsqueeze(0).float() for _ in (analysis, forcings, borders)]
-# print(f"Shapes: analysis={analysis.shape}, forcings={forcings.shape}, borders={borders.shape}")
