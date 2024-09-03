@@ -57,7 +57,7 @@ import matplotlib.pyplot as plt
 import easydict
 from pprint import pprint
 from pyproj import Transformer
-from mera_explorer import PACKAGE_DIRECTORY, utils
+from mera_explorer import PACKAGE_DIRECTORY, MERACLIMDIR, utils
 import argparse
 import warnings
 
@@ -67,7 +67,7 @@ parser = argparse.ArgumentParser(
     description="Create static features for Neural-LAM",
     epilog="Example: python create_static_features.py --indirclim /data/trieutord/MERA/meraclim --outdirmllam /data/emcaufield/neural_LAM/neural-lam/data/mera_example_emca2",
 )
-parser.add_argument("--indirclim", help="Path to MERA climatology directory")
+parser.add_argument("--indirclim", help="Path to MERA data climatology directory", default=MERACLIMDIR)
 parser.add_argument(
     "--outdirmllam",
     help="Path to the data sample for Neural-LAM (from create_mera_sample.py)",
