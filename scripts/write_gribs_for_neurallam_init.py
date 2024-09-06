@@ -28,11 +28,11 @@ parser.add_argument(
 parser.add_argument(
     "--outdir",
     help="Frequency of files to be extracted",
-    default=forecasts.DEFAULT_ROOTDIR,
+    default=forecasts.NEURALLAM_INFERENCE_OUTPUTS,
 )
 args = parser.parse_args()
 
-forecasts.DEFAULT_ROOTDIR = args.outdir
+forecasts.NEURALLAM_INFERENCE_OUTPUTS = args.outdir
 forecasts.create_mera_analysis_and_forcings(
     startdate=args.sdate,
     enddate=args.edate,
