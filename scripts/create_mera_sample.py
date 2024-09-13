@@ -136,7 +136,7 @@ cfnames = [  # Order matters
 toaswf_cfname = "toa_incoming_shortwave_flux"
 
 parser = argparse.ArgumentParser(prog="create_mera_sample.py", epilog="Example: python create_mera_sample.py --indirclim $PERM/mera --indirgrib $SCRATCH --outdir $SCRATCH/neurallam/mera_dataset_10years/samples --sdate 2005-01-01 --edate 2015-01-01")
-parser.add_argument("--indirclim", help="Path to MERA data climatology directory", default=MERACLIMDIR)
+parser.add_argument("--indirclim", help="Path to MERA data climatology directory. UNUSED (kept to preserve API)", default=MERACLIMDIR)
 parser.add_argument("--indirgrib", help="Path to MERA data directory", default=MERAROOTDIR)
 parser.add_argument("--outdir", help="Output data directory")
 parser.add_argument(
@@ -162,7 +162,6 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-meraclimroot = args.indirclim
 merarootdir = args.indirgrib
 npyrootdir = args.outdir
 writefiles = args.writefiles
@@ -188,17 +187,6 @@ else:
         "val": anchortimes[length_split * 2 :],
     }
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    sfx = xr.open_dataset(
-        os.path.join(meraclimroot, "m05.grib"),
-        engine="cfgrib",
-        filter_by_keys={"typeOfLevel": "heightAboveGround"},
-        backend_kwargs={
-            "indexpath": os.path.join(gribs.INDEX_PATH, "m05.grib.idx")
-        },
-    )
-lsm = ss(sfx.lsm.to_numpy())
 wrtfile = os.path.join(npyrootdir, "static", "wrt_mask.npy")
 
 for subset, anchortimes in anchorsplit.items():
@@ -282,10 +270,8 @@ for subset, anchortimes in anchorsplit.items():
 
         # WRT files
         # ---------
-        print("\t\tland_sea_mask", lsm.shape, lsm.min(), lsm.mean(), lsm.max())
-
         if writefiles:
-            np.save(os.path.join(npysavedir, wtrfilename), lsm)
-            print(f"\tSaved: {os.path.join(npysavedir, wtrfilename)}")
+            os.symlink(wrtfile, os.path.join(npysavedir, wtrfilename))
+            print(f"\tLink: {os.path.join(npysavedir, wtrfilename)} -> {wrtfile}")
 
     print(f"\t{len(gribnames)} GRIB used.")
