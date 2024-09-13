@@ -12,7 +12,7 @@ python create_mera_sample.py --indirclim /data/trieutord/MERA/meraclim --indirgr
 Target tree of files
 --------------------
 
-meps_example
+meps_example    <- args.outdir leads here
 ├── samples
 │   ├── test
 │   │   ├── nwp_2022090100_mbr000.npy
@@ -199,11 +199,12 @@ with warnings.catch_warnings():
         },
     )
 lsm = ss(sfx.lsm.to_numpy())
+wrtfile = os.path.join(npyrootdir, "static", "wrt_mask.npy")
 
 for subset, anchortimes in anchorsplit.items():
     print(f"\n=== {subset.upper()} ===")
     gribnames = []
-    npysavedir = os.path.join(npyrootdir, subset)
+    npysavedir = os.path.join(npyrootdir, "samples", subset)
     os.makedirs(npysavedir, exist_ok=True)
 
     for i_anchor, anchor in enumerate(anchortimes):

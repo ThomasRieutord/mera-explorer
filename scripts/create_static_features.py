@@ -8,7 +8,7 @@ Create static features for Neural-LAM training.
 Tree of files to be written:
 
 data
-└── mera_example
+└── mera_example    <- args.outdir leads here
     ├── samples
     └── static
         ├── surface_geopotential.npy
@@ -69,7 +69,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--indirclim", help="Path to MERA data climatology directory", default=MERACLIMDIR)
 parser.add_argument(
-    "--outdirmllam",
+    "--outdir",
     help="Path to the data sample for Neural-LAM (from create_mera_sample.py)",
 )
 parser.add_argument(
@@ -81,18 +81,18 @@ parser.add_argument("--subsample", help="Subsampling factor (1=no subsampling, 2
 args = parser.parse_args()
 
 writefiles = args.writefiles
-meraclimroot = args.indirclim
-mllamdataroot = args.outdirmllam
+meraclimdir = args.indirclim
+npyrootdir = args.outdir
 
 dtype = np.float32
 ss = lambda x: utils.subsample(x, args.subsample)
-os.makedirs(os.path.join(mllamdataroot, "static"), exist_ok=True)
+os.makedirs(os.path.join(npyrootdir, "static"), exist_ok=True)
 
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     sfx = xr.open_dataset(
-        os.path.join(meraclimroot, "m05.grib"),
+        os.path.join(meraclimdir, "m05.grib"),
         engine="cfgrib",
         filter_by_keys={"typeOfLevel": "heightAboveGround"},
     )
@@ -100,7 +100,7 @@ with warnings.catch_warnings():
 
 # Create the orography file: surface_geopotential
 # --------------------------
-orofile = os.path.join(mllamdataroot, "static", "surface_geopotential.npy")
+orofile = os.path.join(npyrootdir, "static", "surface_geopotential.npy")
 print(f"Orography file to be written in {orofile}")
 
 z = ss(sfx.z.to_numpy().astype(dtype))
@@ -113,7 +113,7 @@ if writefiles:
 
 # Create the geometry file: nwp_xy
 # -------------------------
-xyfile = os.path.join(mllamdataroot, "static", "nwp_xy.npy")
+xyfile = os.path.join(npyrootdir, "static", "nwp_xy.npy")
 print(f"Geometry file to be written in {xyfile}")
 
 meregeomfile = os.path.join(
@@ -150,7 +150,7 @@ if writefiles:
 
 # Create the border file: border_mask
 # -----------------------
-borfile = os.path.join(mllamdataroot, "static", "border_mask.npy")
+borfile = os.path.join(npyrootdir, "static", "border_mask.npy")
 print(f"Border file to be written in {borfile}")
 
 xy = np.load(xyfile)
@@ -165,7 +165,7 @@ if writefiles:
 
 # Create the land/sea mask: wrt_mask
 # ------------------------
-wrtfile = os.path.join(mllamdataroot, "static", "wrt_mask.npy")
+wrtfile = os.path.join(npyrootdir, "static", "wrt_mask.npy")
 print(f"Land/sea mask file to be written in {wrtfile}")
 
 lsm = ss(sfx.lsm.to_numpy().astype(dtype))
@@ -178,9 +178,9 @@ if writefiles:
 
 # Create the constants file: constants.yaml
 # -------------------------
-cstfile = os.path.join(mllamdataroot, "static", "constants.yaml")
+cstfile = os.path.join(npyrootdir, "static", "constants.yaml")
 constants = {
-    "DATASETNAME": os.path.basename(mllamdataroot),
+    "DATASETNAME": os.path.basename(npyrootdir),
     "N_TIMESTEPS_PER_FILE": 21,
     "GRID_SHAPE": list(lsm.shape),
     "GRID_LIMITS": np.array([x.min(), x.max(), y.min(), y.max()]).tolist(),
