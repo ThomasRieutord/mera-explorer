@@ -1,3 +1,7 @@
 # Paths to MERA data on this machine
+#  1. Edit the variables for your machine
+#  2. If it still appear in the tracking, remove it with
+#       git update-index --skip-worktree local/paths.txt
+#
 MERAROOTDIR = "/data/meragrib" # Parent directory of all MERA GRIB files
 MERACLIMDIR = "/data/meraclim" # Directory where are stored climatology data (in particular the m05.grib)
