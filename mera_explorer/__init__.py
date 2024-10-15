@@ -40,9 +40,9 @@ with open(os.path.join(PACKAGE_DIRECTORY, "local", "paths.txt"), "r") as f:
         if "MERACLIMDIR" in l:
             MERACLIMDIR = l.split('"')[1]
 
-with open(os.path.join(PACKAGE_DIRECTORY, "setup.py"), "r") as f:
+with open(os.path.join(PACKAGE_DIRECTORY, "pyproject.toml"), "r") as f:
     for l in f.readlines():
-        if "version=" in l:
+        if "version" in l:
             __version__ = l.split('"')[1]
             break
 

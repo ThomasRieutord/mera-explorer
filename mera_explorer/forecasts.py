@@ -51,7 +51,7 @@ import xarray as xr
 
 from mera_explorer import MERACLIMDIR, MERAROOTDIR, PACKAGE_DIRECTORY, NEURALLAM_VARIABLES, gribs, utils
 
-DEFAULT_ROOTDIR = os.path.join(os.environ["SCRATCH"], "neurallam-inference-outputs")
+NEURALLAM_INFERENCE_OUTPUTS = os.path.join(os.environ["SCRATCH"], "neurallam-inference-outputs")
 DEFAULT_INFERENCEID = "aifc"
 SUBSAMPLING_STEP = 1
 
@@ -82,7 +82,7 @@ def get_path_from_times(basetime, leadtime, inferenceid=DEFAULT_INFERENCEID) -> 
     leadtime = utils.str_to_timedelta(leadtime)
     strldt = str(int(leadtime.total_seconds() // 3600)).zfill(3)
     return os.path.join(
-        DEFAULT_ROOTDIR,
+        NEURALLAM_INFERENCE_OUTPUTS,
         inferenceid,
         *[
             str(_).zfill(2)
@@ -522,13 +522,18 @@ def create_mera_analysis_and_forcings(
     [1/11] Basetime 2017-01-04 00:00:00 written in /ec/res4/scratch/dutr/neural-lam-outputs/mera/2017/01/04/00/mbr000
     [2/11] Basetime 2017-01-07 00:00:00 written in /ec/res4/scratch/dutr/neural-lam-outputs/mera/2017/01/07/00/mbr000
     ...
+    
+    
+    See also
+    --------
+    `forecast_from_analysis_and_forcings`, mera-explorer/scripts/write_gribs_for neurallam_init.py
     """
     start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
     step = utils.str_to_timedelta(step)
     print(
-        f"Writing {len(basetimes) * (max_leadtime//step + 3)} files from MERA in {DEFAULT_ROOTDIR}"
+        f"Writing {len(basetimes) * (max_leadtime//step + 3)} files from MERA in {NEURALLAM_INFERENCE_OUTPUTS}"
     )
 
     for i_bt, basetime in enumerate(basetimes):
@@ -805,14 +810,14 @@ def forecast_from_analysis_and_forcings(
 
     See also
     --------
-    `create_mera_analysis_and_forcings`, `neural_lam.forecaster.Forecaster`
+    `create_mera_analysis_and_forcings`, `neural_lam.forecaster.Forecaster`, mera-explorer/scripts/write_gribs_for neurallam_init.py
     """
     start = time.time()
     basetimes = utils.datetime_arange(startdate, enddate, textract)
     step = utils.str_to_timedelta(step)
     max_leadtime = utils.str_to_timedelta(max_leadtime)
     print(
-        f"Writing {len(basetimes) * (max_leadtime//step + 1)} forecast files with {forecaster.shortname} in {DEFAULT_ROOTDIR}"
+        f"Writing {len(basetimes) * (max_leadtime//step + 1)} forecast files with {forecaster.shortname} in {NEURALLAM_INFERENCE_OUTPUTS}"
     )
 
     for i_bt, basetime in enumerate(basetimes):

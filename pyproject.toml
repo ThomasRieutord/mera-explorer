@@ -1,0 +1,10 @@
+[project]
+name = "mera_explorer"
+version = "0.2"
+
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mera_explorer"]
