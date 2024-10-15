@@ -9,7 +9,7 @@ import os
 import argparse
 from mera_explorer import forecasts
 from neural_lam import forecasters
-from neural_lam import package_rootdir as NLAMPKRDIR
+from neural_lam import PACKAGE_ROOTDIR as NLAMPKRDIR
 
 parser = argparse.ArgumentParser(
     prog="make_fake_forecast.py",
