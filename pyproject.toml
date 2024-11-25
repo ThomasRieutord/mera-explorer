@@ -1,9 +1,33 @@
 [project]
 name = "mera_explorer"
-version = "0.2"
+version = "0.3.0"
+description = "The Met Eireann reanalysis (MERA) explorer. Tools to find and transfer files, create datasets and write inference for Neural-LAM"
+authors = [
+    {name = "Thomas Rieutord", email = "thomas.rieutord@gmail.com"},
+]
+dependencies = [
+	"epygram>=1.5.0",
+	"climetlab>=0.24.0",
+	"xarray>=2024.7.0",
+	"numpy>=1.23",
+	"pandas>=2.0.2",
+	"matplotlib>=3.6",
+	"seaborn>=0.12",
+	"netCDF4>=1.6",
+	"h5py>=3.9",
+	"tqdm>=4.65",
+	"easydict>=1.9",
+	"psutil>=5.9",
+	"paramiko>=3.4",
+	"pyproj>=3.6",
+	"pyyaml"
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "All rights reserved. Met Éireann 2024"}
 
 [build-system]
-requires = ["setuptools >= 64"]
+requires = ["setuptools >= 64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

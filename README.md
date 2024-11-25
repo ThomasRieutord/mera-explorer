@@ -10,40 +10,54 @@ Installation
 ------------
 
 We recommend using isolate Python environment to prevent any disruption with exisitng installation.
-The chosen solution is to use the [Mamba](https://mamba.readthedocs.io/en/latest/) package manager.
+The chosen solution is to use [virtual environments](https://docs.python.org/3/library/venv.html).
 The installation procedure starts from scratch, please skip any step you have already done.
 
-### 1. Install Mamba
+### 1. Set up your virtual environments
 
-Get the installer [here](https://github.com/conda-forge/miniforge/releases), then run it. It will ask for the location of the environment, you should select a location with at least 15GB free. Say yes to the licence and mamba init.
-For Linux, here are the commands:
+As virtual environment can be reach relatively large sizes (with deep learning library, ~5GB per venv), we recommend to store them in a large enough file system.
+Typically, $HOME directories may be too small.
+We store the virtual environments in the variable `VENVROOT`, here set to `/data/trieutord/venvs`.
+Please adjust the path to your account and execute the following commands;
+
 ```
-wget https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-Linux-x86_64.sh
-bash Mambaforge-23.11.0-0-Linux-x86_64.sh
+export VENVROOT=/data/trieutord/venvs
+mkdir $VENVROOT
 ```
 
-### 2. Create a new environment
+### 2. Create a new environment and update pip
 
 After restarting your shell, you will be able to create a new environment with Python 3.11 with the following commands. We suggest `merax` (MERA eXplorer) as the environment name.
 ```
-mamba create -n merax python=3.11
+python3 -m venv $VENVROOT/merax
+source $VENVROOT/merax/bin/activate
+python -m pip install --upgrade pip
+deactivate
 ```
 
-### 3. Install the GRIB-related package with mamba
+### 3. Install the other dependencies and this package with pip
 
-Activate the environment and install these depencies with mamba
+In the directory containing the `pyproject.toml`, run
 ```
-mamba activate merax
-mamba install eccodes cfgrib xarray
-```
-
-### 4. Install the other dependencies and this package with pip
-
-In your activated environment, run
-```
-pip install -r requirements.txt
+source $VENVROOT/merax/bin/activate
 pip install -e .
 ```
+
+### Activate/deactivate the environment
+
+To activate the environment, use
+```
+source $VENVROOT/merax/bin/activate
+```
+The prompt should now display `(merax)` and `which python` must give the path `$VENVROOT/merax/bin/python`. The package is only available when the environment is activated.
+
+
+To deactivate the environment, use
+```
+deactivate
+```
+The prompt should be back to normal and the Python interpreter is system default.
+
 
 ### Check the installation
 
@@ -51,7 +65,7 @@ The environment must be activated each time you want to use the package.
 To check the installation:
 ```
 python tests/import_tests.py
-````
+```
 
 
 Usage
@@ -103,4 +117,4 @@ To get access to the data (after you checked if it is there with this code), ask
 
 ### License:
 
-All rights reserved.
+All rights reserved. Met Éireann 2024.
